@@ -1,7 +1,12 @@
+import 'dart:ui' as prefix0;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:percent_indicator/percent_indicator.dart';
+import 'package:percent_indicator/linear_percent_indicator.dart';
+import 'package:quran_app/reader_page.dart';
 import 'package:quran_app/text_style.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_database/ui/firebase_animated_list.dart';
 
 void main(){
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -53,14 +58,81 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage>
     with SingleTickerProviderStateMixin {
+
+      List<Page> pages=new List();
+      List<Book> books=new List();
+      Page page;
+      Book book;
+      DatabaseReference pageRef;
+      DatabaseReference bookRef;
+      final GlobalKey<FormState> formKey=GlobalKey<FormState>();
+
+
+
+
   int _currentPage = 0;
   TabController _tabController;
   @override
   void initState() {
-    // TODO: implement initState
+    page=Page("","");
+    book=Book("","");
+    final FirebaseDatabase database= FirebaseDatabase.instance;
+    pageRef=database.reference().child('pages');
+    bookRef=database.reference().child('books');
+     pageRef.onChildAdded.listen(_onEntryAdded);
+      pageRef.onChildChanged.listen(_onEntryChanged);
+      bookRef.onChildAdded.listen(_onBookAdded);
+      bookRef.onChildChanged.listen(_onBookChanged);
     _tabController = TabController(vsync: this, length: 2);
     super.initState();
   }
+
+_onEntryAdded(Event event){
+setState(() {
+  pages.add(Page.fromSnapshot(event.snapshot));
+});
+}
+_onBookAdded(Event event){
+setState(() {
+  books.add(Book.fromSnapshot(event.snapshot));
+});
+}
+
+
+ _onEntryChanged(Event event) {
+    var old = pages.singleWhere((entry) {
+      return entry.key == event.snapshot.key;
+    });
+    setState(() {
+     pages[pages.indexOf(old)] = Page.fromSnapshot(event.snapshot);
+    });
+  }
+
+  _onBookChanged(Event event) {
+    var old = books.singleWhere((entry) {
+      return entry.key == event.snapshot.key;
+    });
+    setState(() {
+     books[books.indexOf(old)] = Book.fromSnapshot(event.snapshot);
+    });
+  }
+
+void handleSubmit() {
+    final FormState form = formKey.currentState;
+
+    if (form.validate()) {
+      form.save();
+      form.reset();
+      bookRef.push().set(book.toJson());
+     
+    }
+  }
+
+
+
+
+
+
 
   @override
   void dispose() {
@@ -217,22 +289,27 @@ class _MyHomePageState extends State<MyHomePage>
       ),
     );
 
-    Widget buildRow(String surahTitle,int pageNumber,int index){
-     
-      return ListTile(
-          leading: new Text((index/2+1).toInt().toString()+"."),
-          title: new Text("Surat "+surahTitle),
-          trailing: new Text("Page "+pageNumber.toString()),
+    Widget buildRow(int index){
+    
+      return GestureDetector(
+        onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => ReaderPage(pages[index].id)),
+      ),child: ListTile(
+          leading: new Text((index+1).toInt().toString()+"."),
+          title: new Text(pages[index].title,style: TextStyle(fontFamilyFallback: ['HQPB1','HQPB2','HQPB3','HQPB4'],fontFamily: 'HQPB2')),
+          trailing: new Text("Page "+pages[index].id),
         
-      );
+      ));
     }
      Widget buildMow(int pageNumber,int index){
       
-      return ListTile(
+      return
+         ListTile(
           leading: new Text((index/2+1).toInt().toString()+"."),
           title: new Text("Juz' "+(index/2+1).toInt().toString()),
           trailing: new Text("Page "+pageNumber.toString()),
         
+      
       );
     }
 
@@ -241,9 +318,9 @@ class _MyHomePageState extends State<MyHomePage>
       children: <Widget>[
         new Container(
         child: ListView.builder(
-          itemCount: 227,
+          itemCount: pages.length,
       itemBuilder: (BuildContext context, int index) {
-        return index%2==0 ? buildRow("Al-Fatihah",1,index) : Divider();
+        return buildRow(index);
       },
     )),
     new Container(
@@ -257,7 +334,52 @@ class _MyHomePageState extends State<MyHomePage>
       ],
     );
     final athkarPage = new Container(
-      child: Text("you are on athkars page"),
+      child: Column(
+        children: <Widget>[
+          Flexible(
+            flex: 0,
+            child: Center(
+              child: Form(
+                key: formKey,
+                child: Flex(
+                direction: Axis.vertical,
+                children: <Widget>[
+                   ListTile(
+                    leading: Icon(Icons.info),
+                    title: TextFormField(initialValue: " ",
+                    onSaved: (val) => book.id = val,
+                        validator: (val) => val == "" ? val : null,),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.info),
+                    title: TextFormField(initialValue: " ",
+                    onSaved: (val) => book.body= val,
+                        validator: (val) => val == "" ? val : null,),
+                  ),
+                  
+                  IconButton(
+                    icon: Icon(Icons.send),
+                    onPressed: (){handleSubmit();},
+                  )
+                ],
+                ),
+              ),
+            ),
+          ),
+          Flexible(  child: FirebaseAnimatedList(
+              query: pageRef,
+              itemBuilder: (BuildContext context, DataSnapshot snapshot,
+                  Animation<double> animation, int index) {
+                  
+                return new ListTile(
+                  leading: Icon(Icons.message),
+                  title: Text(pages[index].id ?? ''),
+                  subtitle: Text(pages[index].title,style: TextStyle(fontFamilyFallback: ['HQPB1','HQPB2','HQPB3','HQPB4'] )),
+                );
+              },
+            ),),
+        ],
+      )
     );
     final todayAppBar = AppBar(
       title: Text(widget.title),
@@ -291,7 +413,7 @@ class _MyHomePageState extends State<MyHomePage>
       athkarAppBar,
     ];
 
-    List<Widget> pages = [
+    List<Widget> appPages = [
       todayPage,
       indexPage,
       athkarPage,
@@ -299,7 +421,7 @@ class _MyHomePageState extends State<MyHomePage>
 
     return Scaffold(
       appBar: appBars[_currentPage],
-      body: pages[_currentPage],
+      body: appPages[_currentPage],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentPage,
         onTap: (int index) {
@@ -325,5 +447,54 @@ class _MyHomePageState extends State<MyHomePage>
 
       // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+}
+
+
+class Page{
+  String key;
+  String id;
+  String title;
+ 
+
+  Page(this.id,this.title);
+
+  Page.fromSnapshot(DataSnapshot snapshot) :
+  key =snapshot.key,
+  id=snapshot.value["id"],
+  title=snapshot.value["title"];
+  
+
+
+  toJson(){
+    return {
+      "id" :id,
+      "title":title,
+      
+    };
+  }
+}
+
+
+class Book{
+  String key;
+  String id;
+  String body;
+
+  Book(this.id,this.body);
+  
+
+  Book.fromSnapshot(DataSnapshot snapshot) :
+    key=snapshot.key,
+    id=snapshot.value["id"],
+    body=snapshot.value["body"];
+  
+
+  toJson(){
+    return {
+      "id" :id,
+      "body":body,
+      
+    };
   }
 }
