@@ -17,9 +17,10 @@ environment:
   sdk: ">=2.1.0 <3.0.0"
 
 dependencies:
+  shared_preferences: ^0.5.3+4
   flutter:
     sdk: flutter
-  flutter_pdfview: ^1.0.0+9
+  flutter_pdfview: 
   path_provider: 
   # Check that you have this dependency (added in the previous step)
   firebase_core: ^0.4.0+1
@@ -52,7 +53,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-   - assets/mypdf.pdf
+   - assets/quran_cropped.pdf
   # To add assets to your application, add an assets section, like this:
   # assets:
   #  - images/a_dot_burr.jpeg
