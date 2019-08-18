@@ -70,7 +70,7 @@ class _MyHomePageState extends State<MyHomePage>
   @override
   void initState() {
     page = Page("", "");
-    book = Book("", "","");
+    book = Book("", "","","","");
     final FirebaseDatabase database = FirebaseDatabase.instance;
     pageRef = database.reference().child('pages');
     bookRef = database.reference().child('books');
@@ -353,7 +353,7 @@ class _MyHomePageState extends State<MyHomePage>
               (index + 1).toInt().toString() + ".  Surat " + pages[index].title,
               style: new TextStyle(fontWeight: FontWeight.bold),
             ),
-            trailing: new Text("Page " + pages[index].id),
+            trailing:pages[index].id=="1"? Text("Page 1") : new Text("Page " + (int.parse(pages[index].id)-1).toString()),
           ));
     }
 
@@ -399,7 +399,7 @@ class _MyHomePageState extends State<MyHomePage>
                     leading: Icon(Icons.info),
                     title: TextFormField(
                       keyboardType: TextInputType.number,
-                      initialValue: " ",
+                      initialValue: "",
                       onSaved: (val) => book.page = val,
                       validator: (val) => val == "" ? val : null,
                     ),
@@ -407,17 +407,33 @@ class _MyHomePageState extends State<MyHomePage>
                   ListTile(
                     leading: Icon(Icons.info),
                     title: TextFormField(
-                      
-                      initialValue: "7",
+                      keyboardType: TextInputType.number,
+                      initialValue: "30",
                       onSaved: (val) => book.juz = val,
+                      validator: (val) => val == "" ? val : null,
+                    ),
+                  ),
+                 ListTile(
+                    leading: Icon(Icons.info),
+                    title: TextFormField(
+                      initialValue: "temp",
+                      onSaved: (val) => book.title = val,
                       validator: (val) => val == "" ? val : null,
                     ),
                   ),
                   ListTile(
                     leading: Icon(Icons.info),
                     title: TextFormField(
-                      initialValue: "المائدة",
-                      onSaved: (val) => book.title = val,
+                      initialValue: "temp",
+                      onSaved: (val) => book.ayah = val,
+                      validator: (val) => val == "" ? val : null,
+                    ),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.info),
+                    title: TextFormField(
+                      initialValue: "temp",
+                      onSaved: (val) => book.verse = val,
                       validator: (val) => val == "" ? val : null,
                     ),
                   ),
@@ -548,22 +564,28 @@ class Page {
 class Book {
   String key;
   String page;
+  String ayah;
+  String verse;
   String juz;
   String title;
 
-  Book(this.title, this.page,this.juz);
+  Book(this.title, this.page,this.juz,this.ayah,this.verse);
 
   Book.fromSnapshot(DataSnapshot snapshot)
       : key = snapshot.key,
         page= snapshot.value["page"],
         juz = snapshot.value["juz"],
-        title=snapshot.value["title"];
+        title=snapshot.value["title"],
+        ayah=snapshot.value["ayah"],
+        verse=snapshot.value["verse"];
 
   toJson() {
     return {
       "page": page,
       "juz": juz,
       "title": title,
+      "ayah" : ayah,
+      "verse" : verse,
     };
   }
 }

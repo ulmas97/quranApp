@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:quran_app/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:swipedetector/swipedetector.dart';
 
 class PdfViewPage extends StatefulWidget {
   final String path;
@@ -23,21 +24,29 @@ class _PdfViewPageState extends State<PdfViewPage>
   bool _appBarVisible;
 List<Book> books = new List();
   int _currentPage = 0;
+  
   bool pdfReady = false;
   int _value;
 DatabaseReference bookRef;
   PDFViewController _pdfViewController;
   Future<SharedPreferences> _sPrefs = SharedPreferences.getInstance();
+  SwipeConfiguration s=new SwipeConfiguration(
+    horizontalSwipeMaxHeightThreshold: 200,
+    horizontalSwipeMinDisplacement: 2.0,
+    horizontalSwipeMinVelocity: 1.0,
+  );
   var _scaffoldKey = new GlobalKey<ScaffoldState>();
   int getInt;
   int setInt;
   @override
   void initState() {
     // TODO: implement initState
+    
     final FirebaseDatabase database = FirebaseDatabase.instance;
     bookRef = database.reference().child('books');
     bookRef.onChildAdded.listen(_onEntryAdded);
     bookRef.onChildChanged.listen(_onEntryChanged);
+    
     super.initState();
   getInt=0;
   widget.pageNumber=="bookmark" ? _value=0 :_value=int.parse(widget.pageNumber);
@@ -77,10 +86,22 @@ DatabaseReference bookRef;
     return Container(
       color: Colors.black,
       margin: new EdgeInsets.only(top: 30.0),
-      child: PDFView(
+      child: SwipeDetector(
+        onSwipeLeft: (){
+          
+          _pdfViewController.setPage(++_value);
+          getInt++;
+
+        },
+        onSwipeRight: (){
+          _pdfViewController.setPage(--_value);
+          getInt--;
+        },
+        swipeConfiguration: s,
+        child: PDFView(
         filePath: widget.path,
         autoSpacing: true,
-        enableSwipe: true,
+        enableSwipe:false,
         pageSnap: true,
         swipeHorizontal: true,
         pageFling: true,
@@ -90,15 +111,16 @@ DatabaseReference bookRef;
         },
         onRender: (_pages) {
           setState(() {
+            
             pdfReady = true;
             if (widget.pageNumber == "bookmark"){
               
                 _pdfViewController.setPage(getInt);
-
+  
             }
               
             else
-              _pdfViewController.setPage(int.parse(widget.pageNumber) - 1);
+              _pdfViewController.setPage(int.parse(widget.pageNumber)-2);
           });
         },
         onViewCreated: (PDFViewController vc) {
@@ -110,12 +132,15 @@ DatabaseReference bookRef;
             setState(() {
               _value=value;
               _currentPage=value;
+              
             });
           });
-          
+         
         },
         onPageError: (page, e) {},
       ),
+      
+      )
     );
   }
 
@@ -136,7 +161,8 @@ DatabaseReference bookRef;
 
   @override
   Widget build(BuildContext context) {
-    
+   
+    //books.insert(493,new Book("الزخرف","494","25","temp","temp"));
 
     Animation<Offset> offsetAnimation = new Tween<Offset>(
       begin: Offset(1.0, -70),
@@ -203,8 +229,8 @@ DatabaseReference bookRef;
               child: Slider(
             value: widget.pageNumber=="bookmark" ? getInt.toDouble() : _value.toDouble(),
             min: 0.0,
-            max: 569.0,
-            divisions: 569,
+            max: 605.0,
+            divisions:605,
             activeColor: Colors.cyanAccent,
             inactiveColor: Colors.black,
             label: 'Page ${books[_value].page}\n ${books[_value].title} - Juz ${books[_value].juz} ',
@@ -215,7 +241,7 @@ DatabaseReference bookRef;
             onChanged: (double a) {
               setState(() {
                 _value = a.round();
-                
+                getInt=a.round();
               });
             },
           )),
