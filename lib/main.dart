@@ -59,10 +59,13 @@ class _MyHomePageState extends State<MyHomePage>
   String assetPDFPath = "";
   List<Page> pages = new List();
   List<Book> books = new List();
+  List<Juz> juzes = new List();
   Page page;
   Book book;
+  Juz juz;
   DatabaseReference pageRef;
   DatabaseReference bookRef;
+  DatabaseReference juzRef;
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
   int _currentPage = 0;
@@ -70,12 +73,16 @@ class _MyHomePageState extends State<MyHomePage>
   @override
   void initState() {
     page = Page("", "");
+    juz = Juz("", "");
     book = Book("", "","","","");
     final FirebaseDatabase database = FirebaseDatabase.instance;
     pageRef = database.reference().child('pages');
     bookRef = database.reference().child('books');
+    juzRef = database.reference().child('juzes');
     pageRef.onChildAdded.listen(_onEntryAdded);
     pageRef.onChildChanged.listen(_onEntryChanged);
+    juzRef.onChildAdded.listen(_onJuzAdded);
+    juzRef.onChildChanged.listen(_onJuzChanged);
     bookRef.onChildAdded.listen(_onBookAdded);
     bookRef.onChildChanged.listen(_onBookChanged);
     _tabController = TabController(vsync: this, length: 2);
@@ -107,7 +114,11 @@ class _MyHomePageState extends State<MyHomePage>
       pages.add(Page.fromSnapshot(event.snapshot));
     });
   }
-
+_onJuzAdded(Event event) {
+    setState(() {
+      juzes.add(Juz.fromSnapshot(event.snapshot));
+    });
+  }
   _onBookAdded(Event event) {
     setState(() {
       books.add(Book.fromSnapshot(event.snapshot));
@@ -120,6 +131,14 @@ class _MyHomePageState extends State<MyHomePage>
     });
     setState(() {
       pages[pages.indexOf(old)] = Page.fromSnapshot(event.snapshot);
+    });
+  }
+  _onJuzChanged(Event event) {
+    var old = juzes.singleWhere((entry) {
+      return entry.key == event.snapshot.key;
+    });
+    setState(() {
+      juzes[juzes.indexOf(old)] = Juz.fromSnapshot(event.snapshot);
     });
   }
 
@@ -138,7 +157,7 @@ class _MyHomePageState extends State<MyHomePage>
     if (form.validate()) {
       form.save();
       form.reset();
-      bookRef.push().set(book.toJson());
+      juzRef.push().set(juz.toJson());
     }
   }
 
@@ -342,12 +361,18 @@ class _MyHomePageState extends State<MyHomePage>
     );
 
     Widget buildRow(int index) {
+      String kek;
+      if(index==0 || index==1)
+      kek='0';
+      else
+      kek=(int.parse(pages[index].id)-2).toString();
+      
       return GestureDetector(
           onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
-                      path: assetPDFPath, pageNumber: pages[index].id))),
+                      path: assetPDFPath, pageNumber: kek))),
           child: ListTile(
             leading: new Text(
               (index + 1).toInt().toString() + ".  Surat " + pages[index].title,
@@ -358,11 +383,20 @@ class _MyHomePageState extends State<MyHomePage>
     }
 
     Widget buildMow(int pageNumber, int index) {
-      return ListTile(
+      return GestureDetector(
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => PdfViewPage(
+                      path: assetPDFPath, pageNumber: juzes[index].id))),
+          child: ListTile(
         leading: new Text((index / 2 + 1).toInt().toString() + "."),
-        title: new Text("Juz' " + (index / 2 + 1).toInt().toString()),
-        trailing: new Text("Page " + pageNumber.toString()),
-      );
+        title: new Text("Juz' " + juzes[index].id),
+        trailing: new Text("Page " + juzes[index].page),
+      ));
+      
+      
+       
     }
 
     final indexPage = TabBarView(
@@ -400,7 +434,7 @@ class _MyHomePageState extends State<MyHomePage>
                     title: TextFormField(
                       keyboardType: TextInputType.number,
                       initialValue: "",
-                      onSaved: (val) => book.page = val,
+                      onSaved: (val) => juz.id = val,
                       validator: (val) => val == "" ? val : null,
                     ),
                   ),
@@ -408,35 +442,12 @@ class _MyHomePageState extends State<MyHomePage>
                     leading: Icon(Icons.info),
                     title: TextFormField(
                       keyboardType: TextInputType.number,
-                      initialValue: "30",
-                      onSaved: (val) => book.juz = val,
+                      initialValue: "",
+                      onSaved: (val) => juz.page = val,
                       validator: (val) => val == "" ? val : null,
                     ),
                   ),
-                 ListTile(
-                    leading: Icon(Icons.info),
-                    title: TextFormField(
-                      initialValue: "temp",
-                      onSaved: (val) => book.title = val,
-                      validator: (val) => val == "" ? val : null,
-                    ),
-                  ),
-                  ListTile(
-                    leading: Icon(Icons.info),
-                    title: TextFormField(
-                      initialValue: "temp",
-                      onSaved: (val) => book.ayah = val,
-                      validator: (val) => val == "" ? val : null,
-                    ),
-                  ),
-                  ListTile(
-                    leading: Icon(Icons.info),
-                    title: TextFormField(
-                      initialValue: "temp",
-                      onSaved: (val) => book.verse = val,
-                      validator: (val) => val == "" ? val : null,
-                    ),
-                  ),
+                
                   IconButton(
                     icon: Icon(Icons.send),
                     onPressed: () {
@@ -454,9 +465,9 @@ class _MyHomePageState extends State<MyHomePage>
             itemBuilder: (BuildContext context, DataSnapshot snapshot,
                 Animation<double> animation, int index) {
               return new ListTile(
-                leading: Text(books[index].page?? ' '),
-                title: Text(books[index].juz ?? ''),
-                subtitle: Text(books[index].title ?? ' '),
+                leading: Text(juzes[index].page?? ' '),
+                title: Text(juzes[index].id ?? ''),
+               
               );
             },
           ),
@@ -560,6 +571,26 @@ class Page {
     };
   }
 }
+class Juz {
+  String key;
+  String id;
+  String page;
+
+  Juz(this.id, this.page);
+
+  Juz.fromSnapshot(DataSnapshot snapshot)
+      : key = snapshot.key,
+        id = snapshot.value["id"],
+        page = snapshot.value["page"];
+
+  toJson() {
+    return {
+      "id": id,
+      "page": page,
+    };
+  }
+}
+
 
 class Book {
   String key;

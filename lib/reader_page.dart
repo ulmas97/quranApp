@@ -12,7 +12,7 @@ import 'package:swipedetector/swipedetector.dart';
 class PdfViewPage extends StatefulWidget {
   final String path;
   final String pageNumber;
-
+  
   const PdfViewPage({Key key, this.path, this.pageNumber}) : super(key: key);
   @override
   _PdfViewPageState createState() => _PdfViewPageState();
@@ -44,6 +44,7 @@ DatabaseReference bookRef;
     
     final FirebaseDatabase database = FirebaseDatabase.instance;
     bookRef = database.reference().child('books');
+    
     bookRef.onChildAdded.listen(_onEntryAdded);
     bookRef.onChildChanged.listen(_onEntryChanged);
     
@@ -88,9 +89,10 @@ DatabaseReference bookRef;
       margin: new EdgeInsets.only(top: 30.0),
       child: SwipeDetector(
         onSwipeLeft: (){
-          
+          if(_value<602){
           _pdfViewController.setPage(++_value);
           getInt++;
+          }
 
         },
         onSwipeRight: (){
@@ -120,7 +122,7 @@ DatabaseReference bookRef;
             }
               
             else
-              _pdfViewController.setPage(int.parse(widget.pageNumber)-2);
+              _pdfViewController.setPage(int.parse(widget.pageNumber));
           });
         },
         onViewCreated: (PDFViewController vc) {
@@ -229,8 +231,8 @@ DatabaseReference bookRef;
               child: Slider(
             value: widget.pageNumber=="bookmark" ? getInt.toDouble() : _value.toDouble(),
             min: 0.0,
-            max: 605.0,
-            divisions:605,
+            max: 602.0,
+            divisions:602,
             activeColor: Colors.cyanAccent,
             inactiveColor: Colors.black,
             label: 'Page ${books[_value].page}\n ${books[_value].title} - Juz ${books[_value].juz} ',
