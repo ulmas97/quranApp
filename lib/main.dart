@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as prefix0;
 
@@ -9,6 +10,7 @@ import 'package:quran_app/reader_page.dart';
 import 'package:quran_app/text_style.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_database/ui/firebase_animated_list.dart';
+import 'package:quran_app/time_frame.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -18,6 +20,8 @@ void main() {
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
+
+  
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -56,6 +60,24 @@ class MyHomePage extends StatefulWidget{
 
 class _MyHomePageState extends State<MyHomePage>
     with SingleTickerProviderStateMixin {
+
+Future checkFirstSeen() async {
+     SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool _seen = (prefs.getBool('seen') ?? false);
+
+    if (!_seen) {
+    
+   
+    prefs.setBool('seen', true);
+    Navigator.of(context).pushReplacement(
+        new MaterialPageRoute(builder: (context) => new KhatmaScreen()));
+    }
+    
+    }
+
+
+
+
   String assetPDFPath = "";
   List<Page> pages = new List();
   List<Book> books = new List();
@@ -72,6 +94,8 @@ class _MyHomePageState extends State<MyHomePage>
   TabController _tabController;
   @override
   void initState() {
+    
+   
     page = Page("", "");
     juz = Juz("", "");
     book = Book("", "","","","");
@@ -87,6 +111,9 @@ class _MyHomePageState extends State<MyHomePage>
     bookRef.onChildChanged.listen(_onBookChanged);
     _tabController = TabController(vsync: this, length: 2);
     super.initState();
+     new Timer(new Duration(milliseconds: 200), () {
+    checkFirstSeen();
+    });
     getFileFromAsset("assets/quran_cropped.pdf").then((f) {
       setState(() {
         assetPDFPath = f.path;
@@ -478,6 +505,16 @@ _onJuzAdded(Event event) {
       title: Text(widget.title),
       actions: <Widget>[
         IconButton(
+          icon: Icon(Icons.add_circle_outline),
+          onPressed: (){
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => KhatmaScreen()));
+          },
+        ),
+
+        IconButton(
           icon: Icon(Icons.bookmark),
           onPressed: () {
             Navigator.push(
@@ -488,7 +525,7 @@ _onJuzAdded(Event event) {
           },
         ),
         new Container(
-          width: 20.0,
+          width: 10.0,
         ),
         Icon(Icons.share),
         new Container(

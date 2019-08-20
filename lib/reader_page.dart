@@ -86,7 +86,7 @@ DatabaseReference bookRef;
   Widget get _pdfWidget {
     return Container(
       color: Colors.black,
-      margin: new EdgeInsets.only(top: 30.0),
+     // margin: new EdgeInsets.only(top: 30.0),
       child: SwipeDetector(
         onSwipeLeft: (){
           if(_value<602){
@@ -228,7 +228,11 @@ DatabaseReference bookRef;
         child: Container(
           height: 30,
           child: BottomAppBar(
-              child: Slider(
+              child: SliderTheme(
+                data: SliderThemeData(
+
+                ),
+                child: Slider(
             value: widget.pageNumber=="bookmark" ? getInt.toDouble() : _value.toDouble(),
             min: 0.0,
             max: 602.0,
@@ -246,7 +250,8 @@ DatabaseReference bookRef;
                 getInt=a.round();
               });
             },
-          )),
+          ),
+              )),
         ),
       ),
     );
