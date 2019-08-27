@@ -4,6 +4,7 @@ import 'dart:ui' as prefix0;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/animation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 import 'package:quran_app/reader_page.dart';
@@ -59,12 +60,16 @@ class MyHomePage extends StatefulWidget{
 }
 
 class _MyHomePageState extends State<MyHomePage>
-    with SingleTickerProviderStateMixin {
-
+    with TickerProviderStateMixin {
+      bool firstDone=false;
+      AnimationController controller,secondController;
+      Animation animation,secondAnimation;
+Future<SharedPreferences> _sPrefs = SharedPreferences.getInstance();
 Future checkFirstSeen() async {
      SharedPreferences prefs = await SharedPreferences.getInstance();
     bool _seen = (prefs.getBool('seen') ?? false);
-
+final SharedPreferences pprefs = await _sPrefs;
+    
     if (!_seen) {
     
    
@@ -82,9 +87,14 @@ Future checkFirstSeen() async {
   List<Page> pages = new List();
   List<Book> books = new List();
   List<Juz> juzes = new List();
+  Juz juz;
   Page page;
   Book book;
-  Juz juz;
+  int day;
+  int portion;
+  String startFrom;
+  int currentDay;
+  
   DatabaseReference pageRef;
   DatabaseReference bookRef;
   DatabaseReference juzRef;
@@ -94,8 +104,31 @@ Future checkFirstSeen() async {
   TabController _tabController;
   @override
   void initState() {
-    
+    controller=new AnimationController(
+      duration: Duration(milliseconds: 300),
+      vsync: this,
+
+    );
+    secondController=new AnimationController(
+      duration: Duration(milliseconds: 500),
+      vsync: this,
+
+    );
+    animation=new Tween(begin: 0.0,end: -350.0).animate(controller)..addListener((){
+setState(() {
+  
+});
+    });
+     secondAnimation=new Tween(begin: 350.0,end: 0.0).animate(secondController)..addListener((){
+setState(() {
+  
+});
+    });
+    animation.addStatusListener(animationStatusListener);
+    secondAnimation.addStatusListener(secondAnimationStatusListener);
    
+    
+   getBookMark();
     page = Page("", "");
     juz = Juz("", "");
     book = Book("", "","","","");
@@ -120,6 +153,38 @@ Future checkFirstSeen() async {
         print(assetPDFPath);
       });
     });
+  }
+ void animationStatusListener(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      secondController.forward();
+      firstDone=true;
+      controller.reverse();
+      setBookmark((int.parse(startFrom)+portion).toString(),++currentDay);
+                  getBookMark();
+    } 
+  }
+
+  void secondAnimationStatusListener(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+
+     firstDone=false;
+     secondController.reverse();
+    } 
+   
+  }
+  Future<Null> getBookMark() async {
+    final SharedPreferences prefs = await _sPrefs;
+    day = prefs.getInt('day');
+    startFrom=prefs.getString('startFrom');
+    portion=prefs.getInt('portion');
+    currentDay=prefs.getInt('currentDay');
+    setState(() {});
+  }
+
+  Future<Null> setBookmark(String startFrom,int currentDay) async {
+    final SharedPreferences prefs = await _sPrefs;
+    prefs.setString('startFrom', startFrom);
+    prefs.setInt('currentDay', currentDay);
   }
 
   Future<File> getFileFromAsset(String asset) async {
@@ -192,6 +257,8 @@ _onJuzAdded(Event event) {
   void dispose() {
     // TODO: implement dispose
     _tabController.dispose();
+    controller.dispose();
+    secondController.dispose();
     super.dispose();
   }
 
@@ -211,13 +278,13 @@ _onJuzAdded(Event event) {
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  "Juz'1",
+                  "Juz'"+books[int.parse(startFrom)].juz,
                   style: Style.cardTextStyle,
                 )
               ],
             ),
             new Container(
-              height: 67.0,
+              height: 60.0,
             ),
             new Center(
                 child: new Text(
@@ -225,17 +292,17 @@ _onJuzAdded(Event event) {
               style: Style.cardQuranTextStyle,
             )),
             new Container(
-              height: 67.0,
+              height: 60.0,
             ),
             new Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 new Text(
-                  "Surat Al-Baqarah - Aya 106",
+                  "Surat " + books[int.parse(startFrom)].title+" - Aya 106",
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  "Page 17",
+                  "Page "+startFrom,
                   style: Style.cardTextStyle,
                 ),
               ],
@@ -253,11 +320,11 @@ _onJuzAdded(Event event) {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 new Text(
-                  "To Surat Al-Baqarah - Aya 157",
+                  "To Surat "+ books[int.parse(startFrom)+portion].title +" - Aya 157",
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  "Page 24",
+                 "Page "+ (int.parse(startFrom)+portion).toString(),
                   style: Style.cardTextStyle,
                 ),
               ],
@@ -267,13 +334,23 @@ _onJuzAdded(Event event) {
       ),
     );
 
-    final sessionCard = new Container(
+    final sessionCard = Transform.translate(
+      child: new Container(
       margin: new EdgeInsets.all(10.0),
+     // height: 200,
       child: new SizedBox(
         height: 260.0,
+        
         child: sessionCardContent,
       ),
+    ),
+    offset:firstDone == false ? Offset(animation.value,0.0) :Offset(secondAnimation.value,0.0)
     );
+      
+      
+   
+ 
+   
 
     final readingButtons = new Container(
       child: new Row(
@@ -292,7 +369,11 @@ _onJuzAdded(Event event) {
                     fontWeight: FontWeight.bold,
                     color: Colors.white),
               ),
-              onPressed: () {},
+              onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => PdfViewPage(
+                      path: assetPDFPath, pageNumber: (int.parse(startFrom)-1).toString(), portion: portion))),
             ),
           ),
           ButtonTheme(
@@ -305,7 +386,20 @@ _onJuzAdded(Event event) {
                 style:
                     new TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
               ),
-              onPressed: () {},
+              onPressed: () {
+                
+                  
+                  controller.forward();
+                  
+                  
+                
+                
+                  
+                  
+                  
+                  
+
+              },
             ),
           ),
         ],
@@ -344,10 +438,12 @@ _onJuzAdded(Event event) {
             child: new LinearPercentIndicator(
               width: MediaQuery.of(context).size.width - 30,
               animation: true,
+              isRTL: true,
               lineHeight: 16.0,
               animationDuration: 1000,
-              percent: 0.3,
-              center: Text("30.0%"),
+              percent: currentDay/day,
+              center: Text((currentDay/day).toStringAsFixed(2)+"%"),
+              animateFromLastPercent: true,
               linearStrokeCap: LinearStrokeCap.roundAll,
               progressColor: Colors.cyan[600],
             ),
@@ -355,11 +451,11 @@ _onJuzAdded(Event event) {
           new Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              new Text("Previous: 2",
+              new Text("Previous: "+currentDay.toString(),
                   style: new TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.blueGrey[600])),
-              new Text("Upcoming: 97",
+              new Text("Upcoming: "+(day-currentDay).toString(),
                   style: new TextStyle(
                       fontWeight: FontWeight.bold, color: Colors.blueGrey[600]))
             ],
@@ -399,7 +495,7 @@ _onJuzAdded(Event event) {
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
-                      path: assetPDFPath, pageNumber: kek))),
+                      path: assetPDFPath, pageNumber: kek,portion: 600,))),
           child: ListTile(
             leading: new Text(
               (index + 1).toInt().toString() + ".  Surat " + pages[index].title,
@@ -415,7 +511,7 @@ _onJuzAdded(Event event) {
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
-                      path: assetPDFPath, pageNumber: juzes[index].id))),
+                      path: assetPDFPath, pageNumber: juzes[index].id,portion: 600,))),
           child: ListTile(
         leading: new Text((index / 2 + 1).toInt().toString() + "."),
         title: new Text("Juz' " + juzes[index].id),
@@ -521,7 +617,7 @@ _onJuzAdded(Event event) {
                 context,
                 MaterialPageRoute(
                     builder: (context) => PdfViewPage(
-                        path: assetPDFPath, pageNumber: "bookmark")));
+                        path: assetPDFPath, pageNumber: "bookmark",portion: 600,)));
           },
         ),
         new Container(

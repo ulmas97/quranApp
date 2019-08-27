@@ -1,6 +1,8 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:quran_app/text_style.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'main.dart';
 
@@ -9,23 +11,63 @@ class KhatmaScreen extends StatefulWidget {
 }
 
 class KhatmaScreenState extends State<KhatmaScreen> {
+  Future<SharedPreferences> _sPrefs = SharedPreferences.getInstance();
   String dropDownValue = 'Beginning of Quran';
-  String startingJuz="1";
+  int startingJuz=1;
   int stackIndex = 0;
   int days=30;
+  List<Juz> juzes = new List();
+  Juz juz;
+  DatabaseReference juzRef;
+  int portion;
+     @override
+    void initState() { 
+      juz = Juz("", "");
+      final FirebaseDatabase database = FirebaseDatabase.instance;
+      juzRef = database.reference().child('juzes');
+      juzRef.onChildAdded.listen(_onJuzAdded);
+    juzRef.onChildChanged.listen(_onJuzChanged);
+      super.initState();
+      
+    }
+    _onJuzAdded(Event event) {
+    setState(() {
+      juzes.add(Juz.fromSnapshot(event.snapshot));
+    });
+  }
+
+  _onJuzChanged(Event event) {
+    var old = juzes.singleWhere((entry) {
+      return entry.key == event.snapshot.key;
+    });
+    setState(() {
+      juzes[juzes.indexOf(old)] = Juz.fromSnapshot(event.snapshot);
+    });
+  }
+
+  Future<Null> setBookmark(int day,String startFrom,int portion) async {
+    final SharedPreferences prefs = await _sPrefs;
+    prefs.setInt('day', day);
+    prefs.setString('startFrom', startFrom);
+    prefs.setInt('portion', portion);
+    prefs.setInt('currentDay',0);
+  }
   @override
   Widget build(BuildContext context) {
     String calculate(){
-     double i=(604-(int.parse(startingJuz)-1)*21)/days;
+     double i=(604-(startingJuz-1)*21)/days;
      int j=i.floor();
      int z=i.ceil();
      
 
      if(i>(j+0.1) && i<(z-0.1)){
+       portion=int.parse(j.toString());
        return j.toString() + " or " + z.toString();
      }else if(i<=(j+0.1)){
+       portion=int.parse(j.toString());
        return j.toString();
      }else if(i>=(z-0.1)){
+       portion=int.parse(z.toString());
        return z.toString();
      }
       
@@ -79,7 +121,7 @@ class KhatmaScreenState extends State<KhatmaScreen> {
                                 'Juz\' 11',
                                 'Juz\' 12',
                                 'Juz\' 13',
-                                'Juz\' 4',
+                                'Juz\' 14',
                                 'Juz\' 15',
                                 'Juz\' 16',
                                 'Juz\' 17',
@@ -113,9 +155,9 @@ class KhatmaScreenState extends State<KhatmaScreen> {
                             setState(() {
                               stackIndex = 1;
                               if(dropDownValue=="Beginning of Quran")
-                              startingJuz="1";
+                              startingJuz=1;
                               else
-                              startingJuz=dropDownValue.substring(5);
+                              startingJuz=int.parse(dropDownValue.substring(5));
                             });
                           },
                           child: new Text(
@@ -179,7 +221,8 @@ class KhatmaScreenState extends State<KhatmaScreen> {
                               ),
                               RaisedButton(
                                 onPressed: () {
-                                  
+
+                                  setBookmark(days, juzes[startingJuz-1].page, portion);
                                     Navigator.of(context).pushReplacement(
                                         new MaterialPageRoute(
                                             builder: (context) =>
