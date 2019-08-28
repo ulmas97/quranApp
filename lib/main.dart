@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:ui' as prefix0;
 
@@ -22,7 +23,6 @@ void main() {
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
 
-  
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -50,7 +50,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget{
+class MyHomePage extends StatefulWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
 
   final String title;
@@ -59,25 +59,21 @@ class MyHomePage extends StatefulWidget{
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage>
-    with TickerProviderStateMixin {
-      bool firstDone=false;
-      AnimationController controller,secondController;
-      Animation animation,secondAnimation;
+class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
+  Storage storage;
+  bool firstDone = false;
+  AnimationController controller, secondController;
+  Animation animation, secondAnimation;
 
-Future checkFirstSeen() async {
-     SharedPreferences prefs = await SharedPreferences.getInstance();
+  Future checkFirstSeen() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     bool _seen = (prefs.getBool('seen') ?? false);
     if (!_seen) {
-    prefs.setBool('seen', true);
-    Navigator.of(context).pushReplacement(
-        new MaterialPageRoute(builder: (context) => new KhatmaScreen()));
+      prefs.setBool('seen', true);
+      Navigator.of(context).pushReplacement(
+          new MaterialPageRoute(builder: (context) => new KhatmaScreen()));
     }
-    
-    }
-
-
-
+  }
 
   String assetPDFPath = "";
   List<Page> pages = new List();
@@ -90,7 +86,7 @@ Future checkFirstSeen() async {
   int portion;
   String startFrom;
   int currentDay;
-  
+
   DatabaseReference pageRef;
   DatabaseReference bookRef;
   DatabaseReference juzRef;
@@ -100,37 +96,53 @@ Future checkFirstSeen() async {
   TabController _tabController;
   @override
   void initState() {
-    controller=new AnimationController(
+    storage = Storage();
+    storage.readStartFrom().then((String value) {
+      setState(() {
+        startFrom = value;
+      });
+    });
+    storage.readDay().then((int value) {
+      setState(() {
+        day = value;
+      });
+    });
+    storage.readCurrentDay().then((int value) {
+      setState(() {
+        currentDay = value;
+      });
+    });
+    storage.readPortion().then((int value) {
+      setState(() {
+        portion = value;
+      });
+    });
+    controller = new AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
-
     );
-    secondController=new AnimationController(
+    secondController = new AnimationController(
       duration: Duration(milliseconds: 500),
       vsync: this,
-
     );
-    animation=new Tween(begin: 0.0,end: -350.0).animate(controller)..addListener((){
-setState(() {
-  
-});
-    });
-     secondAnimation=new Tween(begin: 350.0,end: 0.0).animate(secondController)..addListener((){
-setState(() {
-  
-});
-    });
+    animation = new Tween(begin: 0.0, end: -350.0).animate(controller)
+      ..addListener(() {
+        setState(() {});
+      });
+    secondAnimation =
+        new Tween(begin: 350.0, end: 0.0).animate(secondController)
+          ..addListener(() {
+            setState(() {});
+          });
     animation.addStatusListener(animationStatusListener);
     secondAnimation.addStatusListener(secondAnimationStatusListener);
-   
 
-     getBookMark();
-   // calcuta();
-  //  setBookmark();
-  
+    // calcuta();
+    //  setBookmark();
+    
     page = Page("", "");
     juz = Juz("", "");
-    book = Book("", "","","","");
+    book = Book("", "", "", "", "");
     final FirebaseDatabase database = FirebaseDatabase.instance;
     pageRef = database.reference().child('pages');
     bookRef = database.reference().child('books');
@@ -143,8 +155,8 @@ setState(() {
     bookRef.onChildChanged.listen(_onBookChanged);
     _tabController = TabController(vsync: this, length: 2);
     super.initState();
-     new Timer(new Duration(milliseconds: 200), () {
-    checkFirstSeen();
+    new Timer(new Duration(milliseconds: 200), () {
+      checkFirstSeen();
     });
     getFileFromAsset("assets/quran_cropped.pdf").then((f) {
       setState(() {
@@ -153,46 +165,71 @@ setState(() {
       });
     });
   }
- void animationStatusListener(AnimationStatus status) {
+
+  Future<File> _incrementStartFrom() {
+    setState(() {
+      startFrom = (int.parse(startFrom) + portion).toString();
+    });
+
+    // Write the variable as a string to the file.
+    return storage.writeStartFrom(startFrom);
+  }
+
+  Future<File> _incrementCurrentDay() {
+    setState(() {
+      ++currentDay;
+    });
+
+    // Write the variable as a string to the file.
+    return storage.writeCurrentDay(currentDay);
+  }
+
+  Future<File> _incrementPortion() {
+    setState(() {
+      int newPortion =
+          ((604 - int.parse(startFrom)) / (day - currentDay)).floor();
+      portion = newPortion;
+    });
+
+    // Write the variable as a string to the file.
+    return storage.writePortion(portion);
+  }
+
+
+  void animationStatusListener(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
+      _incrementStartFrom();
+      _incrementCurrentDay();
+      _incrementPortion();
       secondController.forward();
-      firstDone=true;
+      firstDone = true;
       controller.reverse();
-      calcuta();
-      settttBookmark();
-      getBookMark();
-    } 
+       storage.readStartFrom().then((String value) {
+      setState(() {
+        startFrom = value;
+      });
+    });
+    storage.readCurrentDay().then((int value) {
+      setState(() {
+        currentDay = value;
+      });
+    });
+    storage.readPortion().then((int value) {
+      setState(() {
+        portion = value;
+      });
+    });
+    }
   }
 
   void secondAnimationStatusListener(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
-
-     firstDone=false;
-     secondController.reverse();
-    } 
-   
-  }
-   getBookMark() async {
-     SharedPreferences prefs = await SharedPreferences.getInstance();
-    day = prefs.getInt('day');
-    startFrom=prefs.getString('startFrom');
-    portion=prefs.getInt('portion');
-    currentDay=prefs.getInt('currentDay');
-    setState(() {});
+      firstDone = false;
+      secondController.reverse();
+    }
   }
 
-  setBookmark() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('startFrom', startFrom);
-    prefs.setInt('currentDay', currentDay);
-    prefs.setInt('portion', portion);
-  }
-  Future settttBookmark() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('startFrom', (int.parse(startFrom)+portion).toString());
-    prefs.setInt('currentDay', ++currentDay);
-    prefs.setInt('portion', portion);
-  }
+  
 
   Future<File> getFileFromAsset(String asset) async {
     try {
@@ -213,11 +250,13 @@ setState(() {
       pages.add(Page.fromSnapshot(event.snapshot));
     });
   }
-_onJuzAdded(Event event) {
+
+  _onJuzAdded(Event event) {
     setState(() {
       juzes.add(Juz.fromSnapshot(event.snapshot));
     });
   }
+
   _onBookAdded(Event event) {
     setState(() {
       books.add(Book.fromSnapshot(event.snapshot));
@@ -232,6 +271,7 @@ _onJuzAdded(Event event) {
       pages[pages.indexOf(old)] = Page.fromSnapshot(event.snapshot);
     });
   }
+
   _onJuzChanged(Event event) {
     var old = juzes.singleWhere((entry) {
       return entry.key == event.snapshot.key;
@@ -269,15 +309,9 @@ _onJuzAdded(Event event) {
     super.dispose();
   }
 
-  int calcuta(){
-    int newPortion=((604-int.parse(startFrom))/(day-currentDay)).floor();
-    portion=newPortion;
-return newPortion;
-  }
-
   @override
   Widget build(BuildContext context) {
-    calcuta();
+    
     final sessionCardContent = new Card(
       elevation: 5.0,
       child: new Container(
@@ -292,7 +326,7 @@ return newPortion;
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  "Juz'"+books[int.parse(startFrom)].juz,
+                  "Juz'" + books[int.parse(startFrom)].juz,
                   style: Style.cardTextStyle,
                 )
               ],
@@ -312,11 +346,11 @@ return newPortion;
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 new Text(
-                  "Surat " + books[int.parse(startFrom)].title+" - Aya 106",
+                  "Surat " + books[int.parse(startFrom)].title + " - Aya 106",
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  "Page "+startFrom,
+                  "Page " + startFrom,
                   style: Style.cardTextStyle,
                 ),
               ],
@@ -334,11 +368,13 @@ return newPortion;
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 new Text(
-                  "To Surat "+ books[int.parse(startFrom)+portion].title +" - Aya 157",
+                  "To Surat " +
+                      books[int.parse(startFrom) + portion].title +
+                      " - Aya 157",
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                 "Page "+ (int.parse(startFrom)+portion).toString(),
+                  "Page " + (int.parse(startFrom) + portion).toString(),
                   style: Style.cardTextStyle,
                 ),
               ],
@@ -348,29 +384,29 @@ return newPortion;
       ),
     );
 
-final endingCard=new Container(
-    //margin: new EdgeInsets.only(top: 30.0),
-    alignment: Alignment.center,
-    child: new Text("تهانينا\nلقد أكملت خاتمك\nاضغط على زر الإضافة لبدء خطمة جديدة",style: Style.cardQuranTextStyle,textAlign: TextAlign.center,),
-  );
+    final endingCard = new Container(
+      //margin: new EdgeInsets.only(top: 30.0),
+      alignment: Alignment.center,
+      child: new Text(
+        "تهانينا\nلقد أكملت خاتمك\nاضغط على زر الإضافة لبدء خطمة جديدة",
+        style: Style.cardQuranTextStyle,
+        textAlign: TextAlign.center,
+      ),
+    );
 
     final sessionCard = Transform.translate(
-      child: new Container(
-      margin: new EdgeInsets.all(10.0),
-     // height: 200,
-      child: new SizedBox(
-        height: 260.0,
-        
-        child: int.parse(startFrom)>=603? endingCard:sessionCardContent,
-      ),
-    ),
-    offset:firstDone == false ? Offset(animation.value,0.0) :Offset(secondAnimation.value,0.0)
-    );
-      
-      
-   
- 
-   
+        child: new Container(
+          margin: new EdgeInsets.all(10.0),
+          // height: 200,
+          child: new SizedBox(
+            height: 260.0,
+            child:
+                int.parse(startFrom) >= 603 ? endingCard : sessionCardContent,
+          ),
+        ),
+        offset: firstDone == false
+            ? Offset(animation.value, 0.0)
+            : Offset(secondAnimation.value, 0.0));
 
     final readingButtons = new Container(
       child: new Row(
@@ -389,11 +425,29 @@ final endingCard=new Container(
                     fontWeight: FontWeight.bold,
                     color: Colors.white),
               ),
-              onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => PdfViewPage(
-                      path: assetPDFPath, pageNumber: (int.parse(startFrom)-1).toString(), portion: portion,lastDay: int.parse(startFrom)+portion,))),
+              onPressed: (){
+
+Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => PdfViewPage(
+                            path: assetPDFPath,
+                            pageNumber: (int.parse(startFrom) - 1).toString(),
+                            portion: portion,
+                            lastDay: int.parse(startFrom) - 1 + portion,
+                          )));
+                          storage.readCurrentDay().then((int value){
+setState(() {
+  currentDay=value;
+});
+
+                          });
+                          storage.readStartFrom().then((String value) {
+      setState(() {
+        startFrom = value;
+      });
+    });
+              } 
             ),
           ),
           ButtonTheme(
@@ -406,20 +460,11 @@ final endingCard=new Container(
                 style:
                     new TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
               ),
-              onPressed: startFrom=='604'? null : () {
-                
-                  
-                  controller.forward();
-                  
-                  
-                
-                
-                  
-                  
-                  
-                  
-
-              },
+              onPressed: startFrom == '604'
+                  ? null
+                  : () {
+                      controller.forward();
+                    },
             ),
           ),
         ],
@@ -461,8 +506,8 @@ final endingCard=new Container(
               isRTL: true,
               lineHeight: 16.0,
               animationDuration: 1000,
-              percent: currentDay/day,
-              center: Text((currentDay/day*100).toStringAsFixed(0)+"%"),
+              percent: currentDay / day,
+              center: Text((currentDay / day * 100).toStringAsFixed(0) + "%"),
               animateFromLastPercent: true,
               linearStrokeCap: LinearStrokeCap.roundAll,
               progressColor: Colors.cyan[600],
@@ -471,11 +516,11 @@ final endingCard=new Container(
           new Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              new Text("Previous: "+currentDay.toString(),
+              new Text("Previous: " + currentDay.toString(),
                   style: new TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.blueGrey[600])),
-              new Text("Upcoming: "+(day-currentDay).toString(),
+              new Text("Upcoming: " + (day - currentDay).toString(),
                   style: new TextStyle(
                       fontWeight: FontWeight.bold, color: Colors.blueGrey[600]))
             ],
@@ -505,23 +550,30 @@ final endingCard=new Container(
 
     Widget buildRow(int index) {
       String kek;
-      if(index==0 || index==1)
-      kek='0';
+      if (index == 0 || index == 1)
+        kek = '0';
       else
-      kek=(int.parse(pages[index].id)-2).toString();
-      
+        kek = (int.parse(pages[index].id) - 2).toString();
+
       return GestureDetector(
           onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
-                      path: assetPDFPath, pageNumber: kek,portion: 600,lastDay: int.parse(startFrom)+portion,))),
+                        path: assetPDFPath,
+                        pageNumber: kek,
+                        portion: 600,
+                        lastDay: 1,
+                      ))),
           child: ListTile(
             leading: new Text(
               (index + 1).toInt().toString() + ".  Surat " + pages[index].title,
               style: new TextStyle(fontWeight: FontWeight.bold),
             ),
-            trailing:pages[index].id=="1"? Text("Page 1") : new Text("Page " + (int.parse(pages[index].id)-1).toString()),
+            trailing: pages[index].id == "1"
+                ? Text("Page 1")
+                : new Text(
+                    "Page " + (int.parse(pages[index].id) - 1).toString()),
           ));
     }
 
@@ -531,15 +583,16 @@ final endingCard=new Container(
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
-                      path: assetPDFPath, pageNumber: juzes[index].id,portion: 600,lastDay: int.parse(startFrom)+portion,))),
+                        path: assetPDFPath,
+                        pageNumber: juzes[index].id,
+                        portion: 600,
+                        lastDay: 1,
+                      ))),
           child: ListTile(
-        leading: new Text((index / 2 + 1).toInt().toString() + "."),
-        title: new Text("Juz' " + juzes[index].id),
-        trailing: new Text("Page " + juzes[index].page),
-      ));
-      
-      
-       
+            leading: new Text((index / 2 + 1).toInt().toString() + "."),
+            title: new Text("Juz' " + juzes[index].id),
+            trailing: new Text("Page " + juzes[index].page),
+          ));
     }
 
     final indexPage = TabBarView(
@@ -590,7 +643,6 @@ final endingCard=new Container(
                       validator: (val) => val == "" ? val : null,
                     ),
                   ),
-                
                   IconButton(
                     icon: Icon(Icons.send),
                     onPressed: () {
@@ -608,9 +660,8 @@ final endingCard=new Container(
             itemBuilder: (BuildContext context, DataSnapshot snapshot,
                 Animation<double> animation, int index) {
               return new ListTile(
-                leading: Text(juzes[index].page?? ' '),
+                leading: Text(juzes[index].page ?? ' '),
                 title: Text(juzes[index].id ?? ''),
-               
               );
             },
           ),
@@ -622,14 +673,11 @@ final endingCard=new Container(
       actions: <Widget>[
         IconButton(
           icon: Icon(Icons.add_circle_outline),
-          onPressed: (){
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => KhatmaScreen()));
+          onPressed: () {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => KhatmaScreen()));
           },
         ),
-
         IconButton(
           icon: Icon(Icons.bookmark),
           onPressed: () {
@@ -637,7 +685,11 @@ final endingCard=new Container(
                 context,
                 MaterialPageRoute(
                     builder: (context) => PdfViewPage(
-                        path: assetPDFPath, pageNumber: "bookmark",portion: 600,lastDay: int.parse(startFrom)+portion,)));
+                          path: assetPDFPath,
+                          pageNumber: "bookmark",
+                          portion: 600,
+                          lastDay: 1,
+                        )));
           },
         ),
         new Container(
@@ -724,6 +776,7 @@ class Page {
     };
   }
 }
+
 class Juz {
   String key;
   String id;
@@ -744,7 +797,6 @@ class Juz {
   }
 }
 
-
 class Book {
   String key;
   String page;
@@ -753,23 +805,134 @@ class Book {
   String juz;
   String title;
 
-  Book(this.title, this.page,this.juz,this.ayah,this.verse);
+  Book(this.title, this.page, this.juz, this.ayah, this.verse);
 
   Book.fromSnapshot(DataSnapshot snapshot)
       : key = snapshot.key,
-        page= snapshot.value["page"],
+        page = snapshot.value["page"],
         juz = snapshot.value["juz"],
-        title=snapshot.value["title"],
-        ayah=snapshot.value["ayah"],
-        verse=snapshot.value["verse"];
+        title = snapshot.value["title"],
+        ayah = snapshot.value["ayah"],
+        verse = snapshot.value["verse"];
 
   toJson() {
     return {
       "page": page,
       "juz": juz,
       "title": title,
-      "ayah" : ayah,
-      "verse" : verse,
+      "ayah": ayah,
+      "verse": verse,
     };
+  }
+}
+
+class Storage {
+  Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+  print(directory.path);
+    return directory.path;
+  }
+
+  Future<File> get _localFileStartFrom async {
+    final path = await _localPath;
+    return File('$path/startFrom.txt');
+  }
+
+  Future<File> get _localFileDay async {
+    final path = await _localPath;
+    return File('$path/day.txt');
+  }
+
+  Future<File> get _localFileCurrentDay async {
+    final path = await _localPath;
+    return File('$path/currentDay.txt');
+  }
+
+  Future<File> get _localFilePortion async {
+    final path = await _localPath;
+    return File('$path/portion.txt');
+  }
+
+  Future<String> readStartFrom() async {
+    try {
+      final fileStartFrom = await _localFileStartFrom;
+
+      // Read the file
+      String contents = await fileStartFrom.readAsString();
+
+      return contents;
+    } catch (e) {
+      // If encountering an error, return 0
+      return '2';
+    }
+  }
+
+  Future<int> readDay() async {
+    try {
+      final fileDay = await _localFileDay;
+
+      // Read the file
+      String contents = await fileDay.readAsString();
+
+      return int.parse(contents);
+    } catch (e) {
+      // If encountering an error, return 0
+      return 0;
+    }
+  }
+
+  Future<int> readCurrentDay() async {
+    try {
+      final fileCurrentDay = await _localFileCurrentDay;
+
+      // Read the file
+      String contents = await fileCurrentDay.readAsString();
+
+      return int.parse(contents);
+    } catch (e) {
+      // If encountering an error, return 0
+      return 0;
+    }
+  }
+
+  Future<int> readPortion() async {
+    try {
+      final filePortion = await _localFilePortion;
+      // Read the file
+      String contents = await filePortion.readAsString();
+
+      return int.parse(contents);
+    } catch (e) {
+      // If encountering an error, return 0
+      return 0;
+    }
+  }
+
+  Future<File> writeStartFrom(String startFrom) async {
+    final fileStartFrom = await _localFileStartFrom;
+
+    // Write the file
+    return fileStartFrom.writeAsString('$startFrom');
+  }
+
+  Future<File> writeDay(int day) async {
+    final fileDay = await _localFileDay;
+
+    // Write the file
+    return fileDay.writeAsString('$day');
+  }
+
+  Future<File> writeCurrentDay(int currentDay) async {
+    final fileCurrentDay = await _localFileCurrentDay;
+
+    // Write the file
+    return fileCurrentDay.writeAsString('$currentDay');
+  }
+
+  Future<File> writePortion(int portion) async {
+    final filePortion = await _localFilePortion;
+
+    // Write the file
+    return filePortion.writeAsString('$portion');
   }
 }

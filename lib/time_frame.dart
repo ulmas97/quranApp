@@ -18,10 +18,12 @@ class KhatmaScreenState extends State<KhatmaScreen> {
   int days=30;
   List<Juz> juzes = new List();
   Juz juz;
+  Storage store;
   DatabaseReference juzRef;
   int portion;
      @override
     void initState() { 
+      store=Storage();
       juz = Juz("", "");
       final FirebaseDatabase database = FirebaseDatabase.instance;
       juzRef = database.reference().child('juzes');
@@ -45,15 +47,7 @@ class KhatmaScreenState extends State<KhatmaScreen> {
     });
   }
 
-  Future<Null> setBookmark(int day,String startFrom,int portion) async {
-    final SharedPreferences prefs = await _sPrefs;
-    prefs.clear();
-    prefs.setInt('day', day);
-    prefs.setBool('seen', true);
-    prefs.setString('startFrom', startFrom);
-    prefs.setInt('portion', portion);
-    prefs.setInt('currentDay',0);
-  }
+  
   @override
   Widget build(BuildContext context) {
     String calculate(){
@@ -223,8 +217,11 @@ class KhatmaScreenState extends State<KhatmaScreen> {
                               ),
                               RaisedButton(
                                 onPressed: () {
-
-                                  setBookmark(days, juzes[startingJuz-1].page, portion);
+                                  store.writeDay(days);
+                                  store.writeCurrentDay(0);
+                                  store.writePortion(portion);
+                                  store.writeStartFrom(juzes[startingJuz-1].page);
+                                  
                                     Navigator.of(context).pushReplacement(
                                         new MaterialPageRoute(
                                             builder: (context) =>

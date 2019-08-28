@@ -18,7 +18,8 @@ class PdfViewPage extends StatefulWidget {
   final int portion;
   final int lastDay;
 
-  const PdfViewPage({Key key, this.path, this.pageNumber, this.portion,this.lastDay})
+  const PdfViewPage(
+      {Key key, this.path, this.pageNumber, this.portion, this.lastDay})
       : super(key: key);
   @override
   _PdfViewPageState createState() => _PdfViewPageState();
@@ -189,7 +190,7 @@ class _PdfViewPageState extends State<PdfViewPage>
   Future<Null> getBookMark() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     getInt = prefs.getInt('bookmark');
-   // _currentDay=prefs.getInt('currentDay');
+    // _currentDay=prefs.getInt('currentDay');
     setState(() {});
   }
 
@@ -276,14 +277,14 @@ class _PdfViewPageState extends State<PdfViewPage>
               inactiveColor: Colors.black,
               label: widget.portion == 600
                   ? 'Page ${int.parse(books[_value].page)}\n ${books[_value].title} - Juz ${books[_value].juz} '
-                  : 'Page ${int.parse(books[widget.lastDay-_portionValue].page)}\n ${books[widget.lastDay-_portionValue].title} - Juz ${books[widget.lastDay-_portionValue].juz} ',
+                  : 'Page ${int.parse(books[widget.lastDay - _portionValue].page)}\n ${books[widget.lastDay - _portionValue].title} - Juz ${books[widget.lastDay - _portionValue].juz} ',
               onChangeEnd: (double newValue) {
                 _currentPage = 602 - newValue.round();
-                
+
                 if (widget.portion == 600) {
                   _pdfViewController.setPage(_currentPage);
                 } else {
-                   _pdfViewController.setPage(widget.lastDay-_portionValue);
+                  _pdfViewController.setPage(widget.lastDay - _portionValue);
                 }
               },
               onChangeStart: (double b) {},
@@ -296,13 +297,11 @@ class _PdfViewPageState extends State<PdfViewPage>
                   });
                 } else {
                   setState(() {
-                    _value=a.round();
-                     _portionValue = a.round();
-                  _temp = a.round();
-                  getInt = a.round();
+                    _value = a.round();
+                    _portionValue = a.round();
+                    _temp = a.round();
+                    getInt = a.round();
                   });
-
-                 
                 }
               },
             ),
