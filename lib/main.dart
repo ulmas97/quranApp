@@ -64,15 +64,11 @@ class _MyHomePageState extends State<MyHomePage>
       bool firstDone=false;
       AnimationController controller,secondController;
       Animation animation,secondAnimation;
-Future<SharedPreferences> _sPrefs = SharedPreferences.getInstance();
+
 Future checkFirstSeen() async {
      SharedPreferences prefs = await SharedPreferences.getInstance();
     bool _seen = (prefs.getBool('seen') ?? false);
-final SharedPreferences pprefs = await _sPrefs;
-    
     if (!_seen) {
-    
-   
     prefs.setBool('seen', true);
     Navigator.of(context).pushReplacement(
         new MaterialPageRoute(builder: (context) => new KhatmaScreen()));
@@ -127,8 +123,11 @@ setState(() {
     animation.addStatusListener(animationStatusListener);
     secondAnimation.addStatusListener(secondAnimationStatusListener);
    
-    
-   getBookMark();
+
+     getBookMark();
+   // calcuta();
+  //  setBookmark();
+  
     page = Page("", "");
     juz = Juz("", "");
     book = Book("", "","","","");
@@ -159,8 +158,9 @@ setState(() {
       secondController.forward();
       firstDone=true;
       controller.reverse();
-      setBookmark((int.parse(startFrom)+portion).toString(),++currentDay);
-                  getBookMark();
+      calcuta();
+      settttBookmark();
+      getBookMark();
     } 
   }
 
@@ -172,8 +172,8 @@ setState(() {
     } 
    
   }
-  Future<Null> getBookMark() async {
-    final SharedPreferences prefs = await _sPrefs;
+   getBookMark() async {
+     SharedPreferences prefs = await SharedPreferences.getInstance();
     day = prefs.getInt('day');
     startFrom=prefs.getString('startFrom');
     portion=prefs.getInt('portion');
@@ -181,10 +181,17 @@ setState(() {
     setState(() {});
   }
 
-  Future<Null> setBookmark(String startFrom,int currentDay) async {
-    final SharedPreferences prefs = await _sPrefs;
+  setBookmark() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('startFrom', startFrom);
     prefs.setInt('currentDay', currentDay);
+    prefs.setInt('portion', portion);
+  }
+  Future settttBookmark() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('startFrom', (int.parse(startFrom)+portion).toString());
+    prefs.setInt('currentDay', ++currentDay);
+    prefs.setInt('portion', portion);
   }
 
   Future<File> getFileFromAsset(String asset) async {
@@ -262,8 +269,15 @@ _onJuzAdded(Event event) {
     super.dispose();
   }
 
+  int calcuta(){
+    int newPortion=((604-int.parse(startFrom))/(day-currentDay)).floor();
+    portion=newPortion;
+return newPortion;
+  }
+
   @override
   Widget build(BuildContext context) {
+    calcuta();
     final sessionCardContent = new Card(
       elevation: 5.0,
       child: new Container(
@@ -334,6 +348,12 @@ _onJuzAdded(Event event) {
       ),
     );
 
+final endingCard=new Container(
+    //margin: new EdgeInsets.only(top: 30.0),
+    alignment: Alignment.center,
+    child: new Text("تهانينا\nلقد أكملت خاتمك\nاضغط على زر الإضافة لبدء خطمة جديدة",style: Style.cardQuranTextStyle,textAlign: TextAlign.center,),
+  );
+
     final sessionCard = Transform.translate(
       child: new Container(
       margin: new EdgeInsets.all(10.0),
@@ -341,7 +361,7 @@ _onJuzAdded(Event event) {
       child: new SizedBox(
         height: 260.0,
         
-        child: sessionCardContent,
+        child: int.parse(startFrom)>=603? endingCard:sessionCardContent,
       ),
     ),
     offset:firstDone == false ? Offset(animation.value,0.0) :Offset(secondAnimation.value,0.0)
@@ -373,7 +393,7 @@ _onJuzAdded(Event event) {
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
-                      path: assetPDFPath, pageNumber: (int.parse(startFrom)-1).toString(), portion: portion))),
+                      path: assetPDFPath, pageNumber: (int.parse(startFrom)-1).toString(), portion: portion,lastDay: int.parse(startFrom)+portion,))),
             ),
           ),
           ButtonTheme(
@@ -386,7 +406,7 @@ _onJuzAdded(Event event) {
                 style:
                     new TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
               ),
-              onPressed: () {
+              onPressed: startFrom=='604'? null : () {
                 
                   
                   controller.forward();
@@ -442,7 +462,7 @@ _onJuzAdded(Event event) {
               lineHeight: 16.0,
               animationDuration: 1000,
               percent: currentDay/day,
-              center: Text((currentDay/day).toStringAsFixed(2)+"%"),
+              center: Text((currentDay/day*100).toStringAsFixed(0)+"%"),
               animateFromLastPercent: true,
               linearStrokeCap: LinearStrokeCap.roundAll,
               progressColor: Colors.cyan[600],
@@ -495,7 +515,7 @@ _onJuzAdded(Event event) {
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
-                      path: assetPDFPath, pageNumber: kek,portion: 600,))),
+                      path: assetPDFPath, pageNumber: kek,portion: 600,lastDay: int.parse(startFrom)+portion,))),
           child: ListTile(
             leading: new Text(
               (index + 1).toInt().toString() + ".  Surat " + pages[index].title,
@@ -511,7 +531,7 @@ _onJuzAdded(Event event) {
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
-                      path: assetPDFPath, pageNumber: juzes[index].id,portion: 600,))),
+                      path: assetPDFPath, pageNumber: juzes[index].id,portion: 600,lastDay: int.parse(startFrom)+portion,))),
           child: ListTile(
         leading: new Text((index / 2 + 1).toInt().toString() + "."),
         title: new Text("Juz' " + juzes[index].id),
@@ -617,7 +637,7 @@ _onJuzAdded(Event event) {
                 context,
                 MaterialPageRoute(
                     builder: (context) => PdfViewPage(
-                        path: assetPDFPath, pageNumber: "bookmark",portion: 600,)));
+                        path: assetPDFPath, pageNumber: "bookmark",portion: 600,lastDay: int.parse(startFrom)+portion,)));
           },
         ),
         new Container(

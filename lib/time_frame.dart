@@ -47,7 +47,9 @@ class KhatmaScreenState extends State<KhatmaScreen> {
 
   Future<Null> setBookmark(int day,String startFrom,int portion) async {
     final SharedPreferences prefs = await _sPrefs;
+    prefs.clear();
     prefs.setInt('day', day);
+    prefs.setBool('seen', true);
     prefs.setString('startFrom', startFrom);
     prefs.setInt('portion', portion);
     prefs.setInt('currentDay',0);

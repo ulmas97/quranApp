@@ -16,8 +16,9 @@ class PdfViewPage extends StatefulWidget {
   final String path;
   final String pageNumber;
   final int portion;
+  final int lastDay;
 
-  const PdfViewPage({Key key, this.path, this.pageNumber, this.portion})
+  const PdfViewPage({Key key, this.path, this.pageNumber, this.portion,this.lastDay})
       : super(key: key);
   @override
   _PdfViewPageState createState() => _PdfViewPageState();
@@ -34,10 +35,10 @@ class _PdfViewPageState extends State<PdfViewPage>
   int _value;
   int _temp;
   int _portionValue;
-  int _currentDay;
+  //int _currentDay;
   DatabaseReference bookRef;
   PDFViewController _pdfViewController;
-  Future<SharedPreferences> _sPrefs = SharedPreferences.getInstance();
+  //Future<SharedPreferences> _sPrefs = SharedPreferences.getInstance();
   SwipeConfiguration s = new SwipeConfiguration(
     horizontalSwipeMaxHeightThreshold: 200,
     horizontalSwipeMinDisplacement: 2.0,
@@ -181,14 +182,14 @@ class _PdfViewPageState extends State<PdfViewPage>
   }
 
   Future<Null> setBookmark(int currentPage) async {
-    final SharedPreferences prefs = await _sPrefs;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setInt('bookmark', currentPage);
   }
 
   Future<Null> getBookMark() async {
-    final SharedPreferences prefs = await _sPrefs;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     getInt = prefs.getInt('bookmark');
-    _currentDay=prefs.getInt('currentDay');
+   // _currentDay=prefs.getInt('currentDay');
     setState(() {});
   }
 
@@ -275,14 +276,14 @@ class _PdfViewPageState extends State<PdfViewPage>
               inactiveColor: Colors.black,
               label: widget.portion == 600
                   ? 'Page ${int.parse(books[_value].page)}\n ${books[_value].title} - Juz ${books[_value].juz} '
-                  : 'Page ${int.parse(books[widget.portion*(_currentDay+1)-_portionValue].page)}\n ${books[widget.portion*(_currentDay+1)-_portionValue].title} - Juz ${books[widget.portion*(_currentDay+1)-_portionValue].juz} ',
+                  : 'Page ${int.parse(books[widget.lastDay-_portionValue].page)}\n ${books[widget.lastDay-_portionValue].title} - Juz ${books[widget.lastDay-_portionValue].juz} ',
               onChangeEnd: (double newValue) {
                 _currentPage = 602 - newValue.round();
                 
                 if (widget.portion == 600) {
                   _pdfViewController.setPage(_currentPage);
                 } else {
-                   _pdfViewController.setPage(widget.portion*(_currentDay+1)-_portionValue);
+                   _pdfViewController.setPage(widget.lastDay-_portionValue);
                 }
               },
               onChangeStart: (double b) {},
@@ -295,6 +296,7 @@ class _PdfViewPageState extends State<PdfViewPage>
                   });
                 } else {
                   setState(() {
+                    _value=a.round();
                      _portionValue = a.round();
                   _temp = a.round();
                   getInt = a.round();
