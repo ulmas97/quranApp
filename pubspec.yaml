@@ -17,6 +17,7 @@ environment:
   sdk: ">=2.1.0 <3.0.0"
 
 dependencies:
+  intl: ^0.16.0
   shared_preferences: ^0.5.3+4
   swipedetector: ^1.2.0
   flutter:

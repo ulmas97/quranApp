@@ -12,7 +12,7 @@ import 'package:quran_app/reader_page.dart';
 import 'package:quran_app/text_style.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_database/ui/firebase_animated_list.dart';
-import 'package:quran_app/time_frame.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -60,18 +60,19 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
-  Storage storage;
+  
   bool firstDone = false;
   AnimationController controller, secondController;
   Animation animation, secondAnimation;
-
+  int _bookmark;
+bool _seen;
   Future checkFirstSeen() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool _seen = (prefs.getBool('seen') ?? false);
+    _seen = (prefs.getBool('seen') ?? false);
+    _bookmark=(prefs.getInt('bookmark')??0);
     if (!_seen) {
       prefs.setBool('seen', true);
-      Navigator.of(context).pushReplacement(
-          new MaterialPageRoute(builder: (context) => new KhatmaScreen()));
+      stackIndex=1;
     }
   }
 
@@ -86,6 +87,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   int portion;
   String startFrom;
   int currentDay;
+  String dropDownValue = 'Beginning of Quran';
+  int startingJuz = 1;
+  int stackIndex = 0;
+  int days = 30;
 
   DatabaseReference pageRef;
   DatabaseReference bookRef;
@@ -96,27 +101,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   TabController _tabController;
   @override
   void initState() {
-    storage = Storage();
-    storage.readStartFrom().then((String value) {
-      setState(() {
-        startFrom = value;
-      });
-    });
-    storage.readDay().then((int value) {
-      setState(() {
-        day = value;
-      });
-    });
-    storage.readCurrentDay().then((int value) {
-      setState(() {
-        currentDay = value;
-      });
-    });
-    storage.readPortion().then((int value) {
-      setState(() {
-        portion = value;
-      });
-    });
+    
+    getAllInfo();
     controller = new AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
@@ -139,7 +125,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
     // calcuta();
     //  setBookmark();
-    
+
     page = Page("", "");
     juz = Juz("", "");
     book = Book("", "", "", "", "");
@@ -166,59 +152,43 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     });
   }
 
-  Future<File> _incrementStartFrom() {
-    setState(() {
-      startFrom = (int.parse(startFrom) + portion).toString();
-    });
+  setAllInfo() async{
+    SharedPreferences prefs=await SharedPreferences.getInstance();
+    prefs.setString('startFrom',juzes[startingJuz-1].page);
+    prefs.setInt('portion', portion);
+    prefs.setInt('day', days);
+    prefs.setInt('currentDay', 0);
 
-    // Write the variable as a string to the file.
-    return storage.writeStartFrom(startFrom);
   }
 
-  Future<File> _incrementCurrentDay() {
-    setState(() {
-      ++currentDay;
-    });
-
-    // Write the variable as a string to the file.
-    return storage.writeCurrentDay(currentDay);
+  incrementAllInfo() async{
+    SharedPreferences prefs=await SharedPreferences.getInstance();
+    prefs.setString('startFrom', (int.parse(startFrom)+portion).toString());
+    prefs.setInt('portion', portion);
+    prefs.setInt('day', day);
+    prefs.setInt('currentDay', ++currentDay);
   }
 
-  Future<File> _incrementPortion() {
-    setState(() {
-      int newPortion =
-          ((604 - int.parse(startFrom)) / (day - currentDay)).floor();
-      portion = newPortion;
-    });
-
-    // Write the variable as a string to the file.
-    return storage.writePortion(portion);
+  getAllInfo() async{
+    SharedPreferences prefs=await SharedPreferences.getInstance();
+    startFrom=(prefs.getString('startFrom')?? '1');
+    portion=(prefs.getInt('portion')?? 0);
+    day=(prefs.getInt('day')??0);
+    currentDay=(prefs.getInt('currentDay')??0);
   }
 
+  
 
   void animationStatusListener(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
-      _incrementStartFrom();
-      _incrementCurrentDay();
-      _incrementPortion();
+      portion=((604-int.parse(startFrom))/(day-currentDay)).floor();
+      
+      incrementAllInfo();
       secondController.forward();
       firstDone = true;
       controller.reverse();
-       storage.readStartFrom().then((String value) {
-      setState(() {
-        startFrom = value;
-      });
-    });
-    storage.readCurrentDay().then((int value) {
-      setState(() {
-        currentDay = value;
-      });
-    });
-    storage.readPortion().then((int value) {
-      setState(() {
-        portion = value;
-      });
-    });
+     getAllInfo();
+      
     }
   }
 
@@ -228,8 +198,6 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       secondController.reverse();
     }
   }
-
-  
 
   Future<File> getFileFromAsset(String asset) async {
     try {
@@ -311,7 +279,23 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    
+    String calculate() {
+      double i = (604 - (startingJuz - 1) * 21) / days;
+      int j = i.floor();
+      int z = i.ceil();
+
+      if (i > (j + 0.1) && i < (z - 0.1)) {
+        portion = int.parse(j.toString());
+        return j.toString() + " or " + z.toString();
+      } else if (i <= (j + 0.1)) {
+        portion = int.parse(j.toString());
+        return j.toString();
+      } else if (i >= (z - 0.1)) {
+        portion = int.parse(z.toString());
+        return z.toString();
+      }
+    }
+
     final sessionCardContent = new Card(
       elevation: 5.0,
       child: new Container(
@@ -368,13 +352,15 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 new Text(
+                  startFrom=='604'? '':
                   "To Surat " +
-                      books[int.parse(startFrom) + portion].title +
+                    books[int.parse(startFrom) + portion].title +
                       " - Aya 157",
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  "Page " + (int.parse(startFrom) + portion).toString(),
+                  startFrom =='604' ? ' ' :
+                  "Page "+ (int.parse(startFrom) + portion).toString(),
                   style: Style.cardTextStyle,
                 ),
               ],
@@ -418,37 +404,29 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             height: 50.0,
             buttonColor: Colors.lightBlue[800],
             child: new RaisedButton(
-              child: Text(
-                'Continue Reading',
-                style: new TextStyle(
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-              ),
-              onPressed: (){
-
-Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => PdfViewPage(
-                            path: assetPDFPath,
-                            pageNumber: (int.parse(startFrom) - 1).toString(),
-                            portion: portion,
-                            lastDay: int.parse(startFrom) - 1 + portion,
-                          )));
-                          storage.readCurrentDay().then((int value){
-setState(() {
-  currentDay=value;
-});
-
-                          });
-                          storage.readStartFrom().then((String value) {
-      setState(() {
-        startFrom = value;
-      });
-    });
-              } 
-            ),
+                child: Text(
+                  'Continue Reading',
+                  style: new TextStyle(
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
+                onPressed: 
+                  startFrom=='604' ? null :
+                   (){
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => PdfViewPage(
+                                path: assetPDFPath,
+                                pageNumber:
+                                    (int.parse(startFrom) - 1).toString(),
+                                portion: portion,
+                                lastDay: int.parse(startFrom) - 1 + portion,
+                              )));
+                  
+                }
+                ),
           ),
           ButtonTheme(
             minWidth: 155.0,
@@ -674,14 +652,16 @@ setState(() {
         IconButton(
           icon: Icon(Icons.add_circle_outline),
           onPressed: () {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => KhatmaScreen()));
+            setState(() {
+              stackIndex=1;
+            });
           },
         ),
         IconButton(
           icon: Icon(Icons.bookmark),
           onPressed: () {
-            Navigator.push(
+            if(_bookmark!=0){
+              Navigator.push(
                 context,
                 MaterialPageRoute(
                     builder: (context) => PdfViewPage(
@@ -690,6 +670,14 @@ setState(() {
                           portion: 600,
                           lastDay: 1,
                         )));
+            }else
+            {
+             Scaffold.of(context).showSnackBar(new SnackBar(
+                                  content:
+                                      new Text("The Bookmark has not been set yet")));
+            }
+
+            
           },
         ),
         new Container(
@@ -726,8 +714,12 @@ setState(() {
       athkarPage,
     ];
 
-    return Scaffold(
-      appBar: appBars[_currentPage],
+
+      return IndexedStack(
+        index: stackIndex,
+children: <Widget>[
+  Scaffold(appBar: appBars[_currentPage],
+
       body: appPages[_currentPage],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentPage,
@@ -750,10 +742,180 @@ setState(() {
             title: Text('Athkar'),
           )
         ],
-      ),
+      ),),
+  Scaffold(appBar: new AppBar(title: Text("New Khatmah"),actions: <Widget>[
+          _seen? new IconButton(
+             icon: new Icon(Icons.close),
+            onPressed: (){
+              setState(() {
+                stackIndex=0;
+              });
+            }
+           ): null,
+         ],),
+  body: new Container(
+              margin: new EdgeInsets.symmetric(vertical: 120.0),
+              child: new Column(
+                children: <Widget>[
+                  new Text(
+                    "From where do you wish to start your Khatmah?",
+                    textAlign: TextAlign.center,
+                    style: Style.cardQuranTextStyle,
+                  ),
+                  new Container(
+                    margin: new EdgeInsets.only(top: 100.0),
+                    child: new Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        new Text("Start from:    ",
+                            style: new TextStyle(
+                              fontSize: 16.0,
+                            )),
+                        new DropdownButton(
+                          value: dropDownValue,
+                          onChanged: (String newValue) {
+                            setState(() {
+                              dropDownValue = newValue;
+                            });
+                          },
+                          items: <String>[
+                            'Beginning of Quran',
+                            'Juz\' 2',
+                            'Juz\' 3',
+                            'Juz\' 4',
+                            'Juz\' 5',
+                            'Juz\' 6',
+                            'Juz\' 7',
+                            'Juz\' 8',
+                            'Juz\' 9',
+                            'Juz\' 10',
+                            'Juz\' 11',
+                            'Juz\' 12',
+                            'Juz\' 13',
+                            'Juz\' 14',
+                            'Juz\' 15',
+                            'Juz\' 16',
+                            'Juz\' 17',
+                            'Juz\' 18',
+                            'Juz\' 19',
+                            'Juz\' 20',
+                            'Juz\' 21',
+                            'Juz\' 22',
+                            'Juz\' 23',
+                            'Juz\' 24',
+                            'Juz\' 25',
+                            'Juz\' 26',
+                            'Juz\' 27',
+                            'Juz\' 28',
+                            'Juz\' 29',
+                            'Juz\' 30'
+                          ].map<DropdownMenuItem<String>>((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
+                        )
+                      ],
+                    ),
+                  ),
+                  new Container(
+                    margin: new EdgeInsets.only(top: 100.0),
+                    child: RaisedButton(
+                      onPressed: () {
+                        setState(() {
+                          stackIndex = 2;
+                          if (dropDownValue == "Beginning of Quran")
+                            startingJuz = 1;
+                          else
+                            startingJuz = int.parse(dropDownValue.substring(5));
+                        });
+                      },
+                      child: new Text(
+                          "                  Continue                  "),
+                    ),
+                  )
+                ],
+              ),
+            ),),
+  Scaffold(appBar: new AppBar( title:Text("New Khatmah"),actions: <Widget>[
+           _seen ? new IconButton(
+             icon: new Icon(Icons.close),
+            onPressed: (){
+              setState(() {
+                stackIndex=0;
+              });
+            }
+           ):null,
+         ],),
+  body: new Container(
+              margin: new EdgeInsets.symmetric(vertical: 120.0),
+              child: new Column(
+                children: <Widget>[
+                  new Text(
+                    "In how many days do you want to finish reading the Quran?",
+                    textAlign: TextAlign.center,
+                    style: Style.cardQuranTextStyle,
+                  ),
+                  new Container(
+                    margin: new EdgeInsets.only(top: 100.0),
+                    child: new Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        new Text("Start from:    ",
+                            style: new TextStyle(
+                              fontSize: 16.0,
+                            )),
+                        new Text(
+                          days.toString(),
+                        ),
+                        new IconButton(
+                          icon: Icon(Icons.add),
+                          onPressed: () {
+                            setState(() {
+                              days++;
+                            });
+                          },
+                        ),
+                        new IconButton(
+                          icon: Icon(Icons.remove),
+                          onPressed: () {
+                            setState(() {
+                              days--;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  new Text(calculate()),
+                  new Container(
+                    alignment: Alignment.center,
+                      margin: new EdgeInsets.only(top: 100.0),
+                      child:
+                         
+                          RaisedButton(
+                            onPressed: () {
+                              setAllInfo();
+                              getAllInfo();
+                              setState(() {
+                                stackIndex = 0;
+                              });
+                              
+                              
+                            },
+                            child: new Text("      Continue       "),
+                          ),
+                        
+                      )
+                ],
+              ),
+            ))
+],
+      );
 
-      // This trailing comma makes auto-formatting nicer for build methods.
-    );
+
+  
   }
 }
 
@@ -826,113 +988,3 @@ class Book {
   }
 }
 
-class Storage {
-  Future<String> get _localPath async {
-    final directory = await getApplicationDocumentsDirectory();
-  print(directory.path);
-    return directory.path;
-  }
-
-  Future<File> get _localFileStartFrom async {
-    final path = await _localPath;
-    return File('$path/startFrom.txt');
-  }
-
-  Future<File> get _localFileDay async {
-    final path = await _localPath;
-    return File('$path/day.txt');
-  }
-
-  Future<File> get _localFileCurrentDay async {
-    final path = await _localPath;
-    return File('$path/currentDay.txt');
-  }
-
-  Future<File> get _localFilePortion async {
-    final path = await _localPath;
-    return File('$path/portion.txt');
-  }
-
-  Future<String> readStartFrom() async {
-    try {
-      final fileStartFrom = await _localFileStartFrom;
-
-      // Read the file
-      String contents = await fileStartFrom.readAsString();
-
-      return contents;
-    } catch (e) {
-      // If encountering an error, return 0
-      return '2';
-    }
-  }
-
-  Future<int> readDay() async {
-    try {
-      final fileDay = await _localFileDay;
-
-      // Read the file
-      String contents = await fileDay.readAsString();
-
-      return int.parse(contents);
-    } catch (e) {
-      // If encountering an error, return 0
-      return 0;
-    }
-  }
-
-  Future<int> readCurrentDay() async {
-    try {
-      final fileCurrentDay = await _localFileCurrentDay;
-
-      // Read the file
-      String contents = await fileCurrentDay.readAsString();
-
-      return int.parse(contents);
-    } catch (e) {
-      // If encountering an error, return 0
-      return 0;
-    }
-  }
-
-  Future<int> readPortion() async {
-    try {
-      final filePortion = await _localFilePortion;
-      // Read the file
-      String contents = await filePortion.readAsString();
-
-      return int.parse(contents);
-    } catch (e) {
-      // If encountering an error, return 0
-      return 0;
-    }
-  }
-
-  Future<File> writeStartFrom(String startFrom) async {
-    final fileStartFrom = await _localFileStartFrom;
-
-    // Write the file
-    return fileStartFrom.writeAsString('$startFrom');
-  }
-
-  Future<File> writeDay(int day) async {
-    final fileDay = await _localFileDay;
-
-    // Write the file
-    return fileDay.writeAsString('$day');
-  }
-
-  Future<File> writeCurrentDay(int currentDay) async {
-    final fileCurrentDay = await _localFileCurrentDay;
-
-    // Write the file
-    return fileCurrentDay.writeAsString('$currentDay');
-  }
-
-  Future<File> writePortion(int portion) async {
-    final filePortion = await _localFilePortion;
-
-    // Write the file
-    return filePortion.writeAsString('$portion');
-  }
-}
