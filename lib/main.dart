@@ -12,7 +12,7 @@ import 'package:quran_app/reader_page.dart';
 import 'package:quran_app/text_style.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_database/ui/firebase_animated_list.dart';
-
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -91,7 +91,7 @@ bool _seen;
   int startingJuz = 1;
   int stackIndex = 0;
   int days = 30;
-
+  int thumbNumber=0;
   DatabaseReference pageRef;
   DatabaseReference bookRef;
   DatabaseReference juzRef;
@@ -101,8 +101,22 @@ bool _seen;
   TabController _tabController;
   @override
   void initState() {
+    new Timer(new Duration(milliseconds: 200), () {
+      checkFirstSeen();
+      getAllInfo();
+    getPeriod().then((int value){
+       setState(() {
+         thumbNumber=currentDay-value;
+       });
+    });
+    getFileFromAsset("assets/quran_cropped.pdf").then((f) {
+      setState(() {
+        assetPDFPath = f.path;
+        print(assetPDFPath);
+      });
+    });
+    });
     
-    getAllInfo();
     controller = new AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
@@ -141,17 +155,24 @@ bool _seen;
     bookRef.onChildChanged.listen(_onBookChanged);
     _tabController = TabController(vsync: this, length: 2);
     super.initState();
-    new Timer(new Duration(milliseconds: 200), () {
-      checkFirstSeen();
-    });
-    getFileFromAsset("assets/quran_cropped.pdf").then((f) {
-      setState(() {
-        assetPDFPath = f.path;
-        print(assetPDFPath);
-      });
-    });
+    
+    
   }
-
+  setCurrentTime() async{
+    SharedPreferences prefs=await SharedPreferences.getInstance();
+    var now = new DateTime.now();
+    int a=now.millisecondsSinceEpoch.toInt();
+    prefs.setInt('initTime', a);
+  }
+  Future<int> getPeriod() async{
+SharedPreferences prefs=await SharedPreferences.getInstance();
+int initTime=prefs.getInt('initTime');
+var now =new DateTime.now();
+int a=now.millisecondsSinceEpoch.toInt();
+int seconds=((a-initTime)/1000).floor();
+int days=(((seconds/60)/60)/24).floor();
+return days;
+  }
   setAllInfo() async{
     SharedPreferences prefs=await SharedPreferences.getInstance();
     prefs.setString('startFrom',juzes[startingJuz-1].page);
@@ -184,6 +205,11 @@ bool _seen;
       portion=((604-int.parse(startFrom))/(day-currentDay)).floor();
       
       incrementAllInfo();
+      getPeriod().then((int value){
+       setState(() {
+         thumbNumber=currentDay-value;
+       });
+    });
       secondController.forward();
       firstDone = true;
       controller.reverse();
@@ -466,11 +492,15 @@ bool _seen;
               Container(
                 child: new Row(
                   children: <Widget>[
-                    new Text("Ahead by 2 days"),
+                    thumbNumber==1?new Text("Ahead by a day")
+                    :thumbNumber>1 ?
+                    new Text("Ahead by "+thumbNumber.toString()+" days")
+                    : thumbNumber<0 ?
+                    new Text("Behind by "+thumbNumber.abs().toString()+" days"): Container(),
                     new Container(
                       width: 5.0,
                     ),
-                    Icon(Icons.thumb_up)
+                   thumbNumber > 0? Icon(Icons.thumb_up) : thumbNumber <0 ? Icon(Icons.thumb_down):Container()
                   ],
                 ),
               )
@@ -705,13 +735,15 @@ bool _seen;
     List<Widget> appBars = [
       todayAppBar,
       indexAppBar,
+      
       athkarAppBar,
     ];
 
     List<Widget> appPages = [
       todayPage,
       indexPage,
-      athkarPage,
+      new Container(),
+      //athkarPage,
     ];
 
 
@@ -858,16 +890,16 @@ children: <Widget>[
                     style: Style.cardQuranTextStyle,
                   ),
                   new Container(
-                    margin: new EdgeInsets.only(top: 100.0),
+                    margin: new EdgeInsets.only(top:80.0),
                     child: new Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
-                        new Text("Start from:    ",
+                        new Text("Duration:    ",
                             style: new TextStyle(
                               fontSize: 16.0,
                             )),
                         new Text(
-                          days.toString(),
+                          days.toString()+" days",
                         ),
                         new IconButton(
                           icon: Icon(Icons.add),
@@ -888,7 +920,17 @@ children: <Widget>[
                       ],
                     ),
                   ),
-                  new Text(calculate()),
+                  new Padding(
+                    padding: EdgeInsets.fromLTRB(69.0, 0, 125,0),
+                    child: new Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      new Text('Daily\nAmount:'),
+                     // new Container(width: 10,),
+                      new Text(calculate()+"  pages"),
+                    ],
+                  ),
+                  ),
                   new Container(
                     alignment: Alignment.center,
                       margin: new EdgeInsets.only(top: 100.0),
@@ -897,9 +939,11 @@ children: <Widget>[
                           RaisedButton(
                             onPressed: () {
                               setAllInfo();
+                              setCurrentTime();
                               getAllInfo();
                               setState(() {
                                 stackIndex = 0;
+                                thumbNumber=0;
                               });
                               
                               
