@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:ui' as prefix0;
-
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/animation.dart';
@@ -14,9 +14,11 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_database/ui/firebase_animated_list.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
 
 void main() {
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
   runApp(MyApp());
 }
 
@@ -60,22 +62,35 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
-  
+  FlutterLocalNotificationsPlugin localNotificationsPlugin;
+
   bool firstDone = false;
   AnimationController controller, secondController;
   Animation animation, secondAnimation;
   int _bookmark;
-bool _seen;
+  bool _seen;
   Future checkFirstSeen() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     _seen = (prefs.getBool('seen') ?? false);
-    _bookmark=(prefs.getInt('bookmark')??0);
+    _bookmark = (prefs.getInt('bookmark') ?? 0);
     if (!_seen) {
       prefs.setBool('seen', true);
-      stackIndex=1;
+      stackIndex = 1;
     }
   }
 
+  String morningAthkarHour;
+  String morningAthkarMinute;
+  String eveningAthkarHour;
+  String eveningAthkarMinute;
+  String mulkHour;
+  String mulkMinute;
+  String baqarahHour;
+  String baqarahMinute;
+  bool isMorningAthkarSet;
+  bool isNightAthkarSet;
+  bool isMulkSet;
+  bool isBaqarahSet;
   String assetPDFPath = "";
   List<Page> pages = new List();
   List<Book> books = new List();
@@ -91,7 +106,7 @@ bool _seen;
   int startingJuz = 1;
   int stackIndex = 0;
   int days = 30;
-  int thumbNumber=0;
+  int thumbNumber = 0;
   DatabaseReference pageRef;
   DatabaseReference bookRef;
   DatabaseReference juzRef;
@@ -99,15 +114,66 @@ bool _seen;
 
   int _currentPage = 0;
   TabController _tabController;
+  void initializeNotifications() async {
+    var initializeAndroid = AndroidInitializationSettings('app_icon');
+    var initializeIOS = IOSInitializationSettings();
+    var initSettings = InitializationSettings(initializeAndroid, initializeIOS);
+    await localNotificationsPlugin.initialize(initSettings);
+  }
+
   @override
   void initState() {
-    new Timer(new Duration(milliseconds: 200), () {
-      checkFirstSeen();
-      getAllInfo();
-    getPeriod().then((int value){
-       setState(() {
-         thumbNumber=currentDay-value;
-       });
+    morningAthkarHour = "6";
+    morningAthkarMinute = "18";
+    eveningAthkarHour = "18";
+    eveningAthkarMinute = "6";
+    mulkHour = "6";
+    mulkMinute = "18";
+    baqarahHour = "18";
+    baqarahMinute = "6";
+    isMorningAthkarSet=true;
+    isNightAthkarSet=true;
+    isBaqarahSet=true;
+    isMulkSet=true;
+    page = Page("", "");
+    juz = Juz("", "");
+    book = Book("", "", "", "", "");
+    final FirebaseDatabase database = FirebaseDatabase.instance;
+    pageRef = database.reference().child('pages');
+    bookRef = database.reference().child('books');
+    juzRef = database.reference().child('juzes');
+    /*bookRef.once().then((DataSnapshot snapshot) {
+      var KEYS = snapshot.value.keys;
+      var DATA = snapshot.value;
+      books.clear();
+      for (var individualKey in KEYS) {
+        Book b = new Book(
+            DATA[individualKey]['title'],
+            DATA[individualKey]['page'],
+            DATA[individualKey]['juz'],
+            DATA[individualKey]['ayah'],
+            DATA[individualKey]['verse']);
+            books.add(b);
+      }
+    });*/
+    pageRef.onChildAdded.listen(_onEntryAdded);
+    pageRef.onChildChanged.listen(_onEntryChanged);
+    juzRef.onChildAdded.listen(_onJuzAdded);
+    juzRef.onChildChanged.listen(_onJuzChanged);
+    bookRef.onChildAdded.listen(_onBookAdded);
+    bookRef.onChildChanged.listen(_onBookChanged);
+    localNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+    getAllInfo();
+
+    checkFirstSeen();
+
+    getPeriod().then((int value) {
+      setState(() {
+        thumbNumber = currentDay - value;
+      });
+      initializeNotifications();
+      singleNotification(new Time(23, 08, 0), 'hello', 'world', 654657);
     });
     getFileFromAsset("assets/quran_cropped.pdf").then((f) {
       setState(() {
@@ -115,8 +181,7 @@ bool _seen;
         print(assetPDFPath);
       });
     });
-    });
-    
+
     controller = new AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
@@ -140,81 +205,81 @@ bool _seen;
     // calcuta();
     //  setBookmark();
 
-    page = Page("", "");
-    juz = Juz("", "");
-    book = Book("", "", "", "", "");
-    final FirebaseDatabase database = FirebaseDatabase.instance;
-    pageRef = database.reference().child('pages');
-    bookRef = database.reference().child('books');
-    juzRef = database.reference().child('juzes');
-    pageRef.onChildAdded.listen(_onEntryAdded);
-    pageRef.onChildChanged.listen(_onEntryChanged);
-    juzRef.onChildAdded.listen(_onJuzAdded);
-    juzRef.onChildChanged.listen(_onJuzChanged);
-    bookRef.onChildAdded.listen(_onBookAdded);
-    bookRef.onChildChanged.listen(_onBookChanged);
     _tabController = TabController(vsync: this, length: 2);
     super.initState();
-    
-    
   }
-  setCurrentTime() async{
-    SharedPreferences prefs=await SharedPreferences.getInstance();
+
+  Future singleNotification(
+      Time time, String message, String subText, int hashcode,
+      {String sound}) async {
+    var androidChannel = AndroidNotificationDetails(
+      'channel-di',
+      'channel-name',
+      'channel-description',
+      priority: Priority.Max,
+      importance: Importance.Max,
+    );
+    var iosChannel = IOSNotificationDetails();
+    var platformChannel = NotificationDetails(androidChannel, iosChannel);
+    await localNotificationsPlugin.showDailyAtTime(
+        hashcode, message, subText, time, platformChannel);
+  }
+
+  setCurrentTime() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     var now = new DateTime.now();
-    int a=now.millisecondsSinceEpoch.toInt();
+    int a = now.millisecondsSinceEpoch.toInt();
     prefs.setInt('initTime', a);
   }
-  Future<int> getPeriod() async{
-SharedPreferences prefs=await SharedPreferences.getInstance();
-int initTime=prefs.getInt('initTime');
-var now =new DateTime.now();
-int a=now.millisecondsSinceEpoch.toInt();
-int seconds=((a-initTime)/1000).floor();
-int days=(((seconds/60)/60)/24).floor();
-return days;
+
+  Future<int> getPeriod() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int initTime = prefs.getInt('initTime');
+    var now = new DateTime.now();
+    int a = now.millisecondsSinceEpoch.toInt();
+    int seconds = ((a - initTime) / 1000).floor();
+    int days = (((seconds / 60) / 60) / 24).floor();
+    return days;
   }
-  setAllInfo() async{
-    SharedPreferences prefs=await SharedPreferences.getInstance();
-    prefs.setString('startFrom',juzes[startingJuz-1].page);
+
+  setAllInfo() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('startFrom', juzes[startingJuz - 1].page);
     prefs.setInt('portion', portion);
     prefs.setInt('day', days);
     prefs.setInt('currentDay', 0);
-
   }
 
-  incrementAllInfo() async{
-    SharedPreferences prefs=await SharedPreferences.getInstance();
-    prefs.setString('startFrom', (int.parse(startFrom)+portion).toString());
+  incrementAllInfo() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('startFrom', (int.parse(startFrom) + portion).toString());
     prefs.setInt('portion', portion);
     prefs.setInt('day', day);
     prefs.setInt('currentDay', ++currentDay);
   }
 
-  getAllInfo() async{
-    SharedPreferences prefs=await SharedPreferences.getInstance();
-    startFrom=(prefs.getString('startFrom')?? '1');
-    portion=(prefs.getInt('portion')?? 0);
-    day=(prefs.getInt('day')??0);
-    currentDay=(prefs.getInt('currentDay')??0);
+  Future getAllInfo() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    startFrom = (prefs.getString('startFrom') ?? '1');
+    portion = (prefs.getInt('portion') ?? 0);
+    day = (prefs.getInt('day') ?? 0);
+    currentDay = (prefs.getInt('currentDay') ?? 0);
   }
-
-  
 
   void animationStatusListener(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
-      portion=((604-int.parse(startFrom))/(day-currentDay)).floor();
-      
+      portion = ((604 - int.parse(startFrom)) / (day - currentDay)).floor();
+
       incrementAllInfo();
-      getPeriod().then((int value){
-       setState(() {
-         thumbNumber=currentDay-value;
-       });
-    });
+      getPeriod().then((int value) {
+        setState(() {
+          thumbNumber = currentDay - value;
+        });
+      });
       secondController.forward();
       firstDone = true;
       controller.reverse();
-     getAllInfo();
-      
+      getAllInfo();
     }
   }
 
@@ -336,7 +401,8 @@ return days;
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  "Juz'" + books[int.parse(startFrom)].juz,
+                  "Juz'" +
+                      (books.isEmpty ? '1' : books[int.parse(startFrom)].juz),
                   style: Style.cardTextStyle,
                 )
               ],
@@ -356,7 +422,11 @@ return days;
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 new Text(
-                  "Surat " + books[int.parse(startFrom)].title + " - Aya 106",
+                  "Surat " +
+                      (books.isEmpty
+                          ? '1'
+                          : books[int.parse(startFrom)].title) +
+                      " - Aya 106",
                   style: Style.cardTextStyle,
                 ),
                 new Text(
@@ -378,15 +448,19 @@ return days;
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 new Text(
-                  startFrom=='604'? '':
-                  "To Surat " +
-                    books[int.parse(startFrom) + portion].title +
-                      " - Aya 157",
+                  int.parse(startFrom) >= 604
+                      ? ''
+                      : "To Surat " +
+                          (books.isEmpty
+                              ? '1'
+                              : books[int.parse(startFrom) + portion].title) +
+                          " - Aya 157",
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  startFrom =='604' ? ' ' :
-                  "Page "+ (int.parse(startFrom) + portion).toString(),
+                  int.parse(startFrom) >= 604
+                      ? ' '
+                      : "Page " + (int.parse(startFrom) + portion).toString(),
                   style: Style.cardTextStyle,
                 ),
               ],
@@ -437,22 +511,21 @@ return days;
                       fontWeight: FontWeight.bold,
                       color: Colors.white),
                 ),
-                onPressed: 
-                  startFrom=='604' ? null :
-                   (){
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => PdfViewPage(
-                                path: assetPDFPath,
-                                pageNumber:
-                                    (int.parse(startFrom) - 1).toString(),
-                                portion: portion,
-                                lastDay: int.parse(startFrom) - 1 + portion,
-                              )));
-                  
-                }
-                ),
+                onPressed: startFrom == '604'
+                    ? null
+                    : () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => PdfViewPage(
+                                      path: assetPDFPath,
+                                      pageNumber:
+                                          (int.parse(startFrom) - 1).toString(),
+                                      portion: portion,
+                                      lastDay:
+                                          int.parse(startFrom) - 1 + portion,
+                                    )));
+                      }),
           ),
           ButtonTheme(
             minWidth: 155.0,
@@ -492,15 +565,22 @@ return days;
               Container(
                 child: new Row(
                   children: <Widget>[
-                    thumbNumber==1?new Text("Ahead by a day")
-                    :thumbNumber>1 ?
-                    new Text("Ahead by "+thumbNumber.toString()+" days")
-                    : thumbNumber<0 ?
-                    new Text("Behind by "+thumbNumber.abs().toString()+" days"): Container(),
+                    thumbNumber == 1
+                        ? new Text("Ahead by a day")
+                        : thumbNumber > 1
+                            ? new Text(
+                                "Ahead by " + thumbNumber.toString() + " days")
+                            : thumbNumber < 0
+                                ? new Text("Behind by " +
+                                    thumbNumber.abs().toString() +
+                                    " days")
+                                : Container(),
                     new Container(
                       width: 5.0,
                     ),
-                   thumbNumber > 0? Icon(Icons.thumb_up) : thumbNumber <0 ? Icon(Icons.thumb_down):Container()
+                    thumbNumber > 0
+                        ? Icon(Icons.thumb_up)
+                        : thumbNumber < 0 ? Icon(Icons.thumb_down) : Container()
                   ],
                 ),
               )
@@ -676,6 +756,179 @@ return days;
         ),
       ],
     ));
+    final morePage = new Container(
+        child: ListView(
+      children: <Widget>[
+        new ListTile(
+          dense: true,
+          leading: new Text(
+            'Athkar Alarms',
+            style: new TextStyle(fontSize: 15.0),
+          ),
+        ),
+        new ListTile(
+          leading: Icon(Icons.wb_sunny),
+          title: new Text('Day Athkar Alarm'),
+          trailing: Switch(
+            onChanged: (bool value) {
+              setState(() {
+                isMorningAthkarSet=value;
+              });
+            },
+            value: isMorningAthkarSet,
+          ),
+        ),
+        new ListTile(
+            enabled: isMorningAthkarSet,
+            leading: Icon(Icons.watch_later),
+            title: new Text('Day Athkar Time'),
+            trailing: new FlatButton(
+              child: new Text((int.parse(morningAthkarHour) < 10
+                      ? '0$morningAthkarHour'
+                      : morningAthkarHour) +
+                  ":" +
+                  (int.parse(morningAthkarMinute) < 10
+                      ? '0$morningAthkarMinute'
+                      : morningAthkarMinute)),
+              onPressed:!isMorningAthkarSet? null : () {
+                DatePicker.showTimePicker(
+                  context,
+                  onChanged: (DateTime dateTime) {
+                    setState(() {
+                      morningAthkarHour = dateTime.hour.toString();
+                      morningAthkarMinute = dateTime.minute.toString();
+                    });
+                  },
+                  locale: LocaleType.ar,
+                );
+              },
+            )),
+        new ListTile(
+          leading: Icon(Icons.wb_sunny),
+          title: new Text('Night Athkar Alarm'),
+          trailing: Switch(
+            onChanged: (bool value) {
+              setState(() {
+                isNightAthkarSet=value;
+              });
+            },
+            value: isNightAthkarSet,
+          ),
+        ),
+        new ListTile(
+          enabled: isNightAthkarSet,
+            leading: Icon(Icons.watch_later),
+            title: new Text('Day Athkar Time'),
+            trailing: new FlatButton(
+              child: new Text((int.parse(eveningAthkarHour) < 10
+                      ? '0$eveningAthkarHour'
+                      : eveningAthkarHour) +
+                  ":" +
+                  (int.parse(eveningAthkarMinute) < 10
+                      ? '0$eveningAthkarMinute'
+                      : eveningAthkarMinute)),
+              onPressed:!isNightAthkarSet? null : () {
+                DatePicker.showTimePicker(
+                  context,
+                  onChanged: (DateTime dateTime) {
+                    setState(() {
+                      eveningAthkarHour = dateTime.hour.toString();
+                      eveningAthkarMinute = dateTime.minute.toString();
+                    });
+                  },
+                  locale: LocaleType.ar,
+                );
+              },
+            )),
+            Divider(),
+
+
+            new ListTile(
+          dense: true,
+          leading: new Text(
+            'Sunnah Alarms',
+            style: new TextStyle(fontSize: 15.0),
+          ),
+        ),
+        new ListTile(
+          
+          leading: Icon(Icons.alarm),
+          title: new Text('Al-Mulk Alarm'),
+          trailing: Switch(
+            onChanged: (bool value) {
+              setState(() {
+                isMulkSet=value;
+              });
+            },
+            value: isMulkSet,
+          ),
+        ),
+        new ListTile(
+          enabled: isMulkSet,
+            leading: Icon(Icons.watch_later),
+            title: new Text('Al-Mulk Time'),
+            trailing: new FlatButton(
+              child: new Text((int.parse(mulkHour) < 10
+                      ? '0$mulkHour'
+                      : mulkHour) +
+                  ":" +
+                  (int.parse(mulkMinute) < 10
+                      ? '0$mulkMinute'
+                      : mulkMinute)),
+              onPressed:!isMulkSet? null : () {
+                DatePicker.showTimePicker(
+                  context,
+                  onChanged: (DateTime dateTime) {
+                    setState(() {
+                      mulkHour = dateTime.hour.toString();
+                      mulkMinute = dateTime.minute.toString();
+                    });
+                  },
+                  locale: LocaleType.ar,
+                );
+              },
+            )),
+        new ListTile(
+          leading: Icon(Icons.alarm),
+          title: new Text('Al-Baqarah Alarm'),
+          trailing: Switch(
+            onChanged: (bool value) {
+              setState(() {
+                isBaqarahSet=value;
+              });
+            },
+            value: isBaqarahSet,
+          ),
+        ),
+        new ListTile(
+          enabled: isBaqarahSet,
+            leading: Icon(Icons.watch_later),
+            title: new Text('Al-Baqarah Time'),
+            trailing: new FlatButton(
+              child: new Text((int.parse(baqarahHour) < 10
+                      ? '0$baqarahHour'
+                      : baqarahHour) +
+                  ":" +
+                  (int.parse(baqarahMinute) < 10
+                      ? '0$baqarahMinute'
+                      : baqarahMinute)),
+              onPressed:!isBaqarahSet? null : () {
+                DatePicker.showTimePicker(
+                  context,
+                  onChanged: (DateTime dateTime) {
+                    setState(() {
+                      baqarahHour = dateTime.hour.toString();
+                      baqarahMinute = dateTime.minute.toString();
+                    });
+                  },
+                  locale: LocaleType.ar,
+                );
+              },
+            )),
+            
+      ],
+    ));
+
     final todayAppBar = AppBar(
       title: Text(widget.title),
       actions: <Widget>[
@@ -683,31 +936,27 @@ return days;
           icon: Icon(Icons.add_circle_outline),
           onPressed: () {
             setState(() {
-              stackIndex=1;
+              stackIndex = 1;
             });
           },
         ),
         IconButton(
           icon: Icon(Icons.bookmark),
           onPressed: () {
-            if(_bookmark!=0){
+            if (_bookmark != 0) {
               Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => PdfViewPage(
-                          path: assetPDFPath,
-                          pageNumber: "bookmark",
-                          portion: 600,
-                          lastDay: 1,
-                        )));
-            }else
-            {
-             Scaffold.of(context).showSnackBar(new SnackBar(
-                                  content:
-                                      new Text("The Bookmark has not been set yet")));
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => PdfViewPage(
+                            path: assetPDFPath,
+                            pageNumber: "bookmark",
+                            portion: 600,
+                            lastDay: 1,
+                          )));
+            } else {
+              Scaffold.of(context).showSnackBar(new SnackBar(
+                  content: new Text("The Bookmark has not been set yet")));
             }
-
-            
           },
         ),
         new Container(
@@ -735,152 +984,162 @@ return days;
     List<Widget> appBars = [
       todayAppBar,
       indexAppBar,
-      
       athkarAppBar,
     ];
 
     List<Widget> appPages = [
       todayPage,
       indexPage,
-      new Container(),
+      morePage,
       //athkarPage,
     ];
 
-
-      return IndexedStack(
-        index: stackIndex,
-children: <Widget>[
-  Scaffold(appBar: appBars[_currentPage],
-
-      body: appPages[_currentPage],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentPage,
-        onTap: (int index) {
-          setState(() {
-            _currentPage = index;
-          });
-        },
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.book),
-            title: Text('Today'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            title: Text('Index'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.wb_sunny),
-            title: Text('Athkar'),
-          )
-        ],
-      ),),
-  Scaffold(appBar: new AppBar(title: Text("New Khatmah"),actions: <Widget>[
-          _seen? new IconButton(
-             icon: new Icon(Icons.close),
-            onPressed: (){
+    return IndexedStack(
+      index: stackIndex,
+      children: <Widget>[
+        Scaffold(
+          appBar: appBars[_currentPage],
+          body: appPages[_currentPage],
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: _currentPage,
+            onTap: (int index) {
               setState(() {
-                stackIndex=0;
+                _currentPage = index;
               });
-            }
-           ): null,
-         ],),
-  body: new Container(
-              margin: new EdgeInsets.symmetric(vertical: 120.0),
-              child: new Column(
-                children: <Widget>[
-                  new Text(
-                    "From where do you wish to start your Khatmah?",
-                    textAlign: TextAlign.center,
-                    style: Style.cardQuranTextStyle,
-                  ),
-                  new Container(
-                    margin: new EdgeInsets.only(top: 100.0),
-                    child: new Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        new Text("Start from:    ",
-                            style: new TextStyle(
-                              fontSize: 16.0,
-                            )),
-                        new DropdownButton(
-                          value: dropDownValue,
-                          onChanged: (String newValue) {
-                            setState(() {
-                              dropDownValue = newValue;
-                            });
-                          },
-                          items: <String>[
-                            'Beginning of Quran',
-                            'Juz\' 2',
-                            'Juz\' 3',
-                            'Juz\' 4',
-                            'Juz\' 5',
-                            'Juz\' 6',
-                            'Juz\' 7',
-                            'Juz\' 8',
-                            'Juz\' 9',
-                            'Juz\' 10',
-                            'Juz\' 11',
-                            'Juz\' 12',
-                            'Juz\' 13',
-                            'Juz\' 14',
-                            'Juz\' 15',
-                            'Juz\' 16',
-                            'Juz\' 17',
-                            'Juz\' 18',
-                            'Juz\' 19',
-                            'Juz\' 20',
-                            'Juz\' 21',
-                            'Juz\' 22',
-                            'Juz\' 23',
-                            'Juz\' 24',
-                            'Juz\' 25',
-                            'Juz\' 26',
-                            'Juz\' 27',
-                            'Juz\' 28',
-                            'Juz\' 29',
-                            'Juz\' 30'
-                          ].map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                        )
-                      ],
-                    ),
-                  ),
-                  new Container(
-                    margin: new EdgeInsets.only(top: 100.0),
-                    child: RaisedButton(
+            },
+            items: <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(Icons.book),
+                title: Text('Today'),
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.list),
+                title: Text('Index'),
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.wb_sunny),
+                title: Text('Athkar'),
+              )
+            ],
+          ),
+        ),
+        Scaffold(
+          appBar: new AppBar(
+            title: Text("New Khatmah"),
+            actions: <Widget>[
+              _seen
+                  ? new IconButton(
+                      icon: new Icon(Icons.close),
                       onPressed: () {
                         setState(() {
-                          stackIndex = 2;
-                          if (dropDownValue == "Beginning of Quran")
-                            startingJuz = 1;
-                          else
-                            startingJuz = int.parse(dropDownValue.substring(5));
+                          stackIndex = 0;
                         });
-                      },
-                      child: new Text(
-                          "                  Continue                  "),
-                    ),
-                  )
-                ],
-              ),
-            ),),
-  Scaffold(appBar: new AppBar( title:Text("New Khatmah"),actions: <Widget>[
-           _seen ? new IconButton(
-             icon: new Icon(Icons.close),
-            onPressed: (){
-              setState(() {
-                stackIndex=0;
-              });
-            }
-           ):null,
-         ],),
-  body: new Container(
+                      })
+                  : null,
+            ],
+          ),
+          body: new Container(
+            margin: new EdgeInsets.symmetric(vertical: 120.0),
+            child: new Column(
+              children: <Widget>[
+                new Text(
+                  "From where do you wish to start your Khatmah?",
+                  textAlign: TextAlign.center,
+                  style: Style.cardQuranTextStyle,
+                ),
+                new Container(
+                  margin: new EdgeInsets.only(top: 100.0),
+                  child: new Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      new Text("Start from:    ",
+                          style: new TextStyle(
+                            fontSize: 16.0,
+                          )),
+                      new DropdownButton(
+                        value: dropDownValue,
+                        onChanged: (String newValue) {
+                          setState(() {
+                            dropDownValue = newValue;
+                          });
+                        },
+                        items: <String>[
+                          'Beginning of Quran',
+                          'Juz\' 2',
+                          'Juz\' 3',
+                          'Juz\' 4',
+                          'Juz\' 5',
+                          'Juz\' 6',
+                          'Juz\' 7',
+                          'Juz\' 8',
+                          'Juz\' 9',
+                          'Juz\' 10',
+                          'Juz\' 11',
+                          'Juz\' 12',
+                          'Juz\' 13',
+                          'Juz\' 14',
+                          'Juz\' 15',
+                          'Juz\' 16',
+                          'Juz\' 17',
+                          'Juz\' 18',
+                          'Juz\' 19',
+                          'Juz\' 20',
+                          'Juz\' 21',
+                          'Juz\' 22',
+                          'Juz\' 23',
+                          'Juz\' 24',
+                          'Juz\' 25',
+                          'Juz\' 26',
+                          'Juz\' 27',
+                          'Juz\' 28',
+                          'Juz\' 29',
+                          'Juz\' 30'
+                        ].map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                      )
+                    ],
+                  ),
+                ),
+                new Container(
+                  margin: new EdgeInsets.only(top: 100.0),
+                  child: RaisedButton(
+                    onPressed: () {
+                      setState(() {
+                        stackIndex = 2;
+                        if (dropDownValue == "Beginning of Quran")
+                          startingJuz = 1;
+                        else
+                          startingJuz = int.parse(dropDownValue.substring(5));
+                      });
+                    },
+                    child: new Text(
+                        "                  Continue                  "),
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+        Scaffold(
+            appBar: new AppBar(
+              title: Text("New Khatmah"),
+              actions: <Widget>[
+                _seen
+                    ? new IconButton(
+                        icon: new Icon(Icons.close),
+                        onPressed: () {
+                          setState(() {
+                            stackIndex = 0;
+                          });
+                        })
+                    : null,
+              ],
+            ),
+            body: new Container(
               margin: new EdgeInsets.symmetric(vertical: 120.0),
               child: new Column(
                 children: <Widget>[
@@ -890,7 +1149,7 @@ children: <Widget>[
                     style: Style.cardQuranTextStyle,
                   ),
                   new Container(
-                    margin: new EdgeInsets.only(top:80.0),
+                    margin: new EdgeInsets.only(top: 80.0),
                     child: new Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
@@ -899,7 +1158,7 @@ children: <Widget>[
                               fontSize: 16.0,
                             )),
                         new Text(
-                          days.toString()+" days",
+                          days.toString() + " days",
                         ),
                         new IconButton(
                           icon: Icon(Icons.add),
@@ -921,45 +1180,37 @@ children: <Widget>[
                     ),
                   ),
                   new Padding(
-                    padding: EdgeInsets.fromLTRB(69.0, 0, 125,0),
+                    padding: EdgeInsets.fromLTRB(69.0, 0, 125, 0),
                     child: new Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      new Text('Daily\nAmount:'),
-                     // new Container(width: 10,),
-                      new Text(calculate()+"  pages"),
-                    ],
-                  ),
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        new Text('Daily\nAmount:'),
+                        // new Container(width: 10,),
+                        new Text(calculate() + "  pages"),
+                      ],
+                    ),
                   ),
                   new Container(
                     alignment: Alignment.center,
-                      margin: new EdgeInsets.only(top: 100.0),
-                      child:
-                         
-                          RaisedButton(
-                            onPressed: () {
-                              setAllInfo();
-                              setCurrentTime();
-                              getAllInfo();
-                              setState(() {
-                                stackIndex = 0;
-                                thumbNumber=0;
-                              });
-                              
-                              
-                            },
-                            child: new Text("      Continue       "),
-                          ),
-                        
-                      )
+                    margin: new EdgeInsets.only(top: 100.0),
+                    child: RaisedButton(
+                      onPressed: () {
+                        setAllInfo();
+                        setCurrentTime();
+                        getAllInfo();
+                        setState(() {
+                          stackIndex = 0;
+                          thumbNumber = 0;
+                        });
+                      },
+                      child: new Text("      Continue       "),
+                    ),
+                  )
                 ],
               ),
             ))
-],
-      );
-
-
-  
+      ],
+    );
   }
 }
 
@@ -1031,4 +1282,3 @@ class Book {
     };
   }
 }
-
