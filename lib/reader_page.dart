@@ -51,7 +51,7 @@ class _PdfViewPageState extends State<PdfViewPage>
   @override
   void initState() {
     // TODO: implement initState
- 
+
     _portionValue = widget.portion;
 
     final FirebaseDatabase database = FirebaseDatabase.instance;
@@ -61,21 +61,17 @@ class _PdfViewPageState extends State<PdfViewPage>
     bookRef.onChildChanged.listen(_onEntryChanged);
 
     super.initState();
-  
-    if (widget.pageNumber == "bookmark") {
-      _value=0;
-      getBookMark().then((int value){
-       
-        _temp=602-value;
-      });
-      
 
+    if (widget.pageNumber == "bookmark") {
+      _value = 0;
+      getBookMark().then((int value) {
+        _temp = 602 - value;
+      });
     } else {
       _value = int.parse(widget.pageNumber);
       _temp = 602 - _value;
     }
 
-    
     _appBarVisible = true;
     _controller = AnimationController(
         duration: const Duration(milliseconds: 100), vsync: this, value: 1.0);
@@ -102,7 +98,6 @@ class _PdfViewPageState extends State<PdfViewPage>
 
     super.dispose();
     _controller.dispose();
-    
   }
 
   void _toggleAppBarVisibility() {
@@ -117,36 +112,36 @@ class _PdfViewPageState extends State<PdfViewPage>
         child: SwipeDetector(
           onSwipeLeft: () {
             if (widget.pageNumber == "bookmark") {
-              if(_value==0){
+              if (_value == 0) {
                 null;
-              }else{
+              } else {
                 _pdfViewController.setPage(--_value);
-              getInt--;
-              _temp++;
-              _portionValue++;
+                getInt--;
+                _temp++;
+                _portionValue++;
               }
-              
             } else if (_value == int.parse(widget.pageNumber) &&
                 widget.portion != 600) {
               null;
             } else {
-              _pdfViewController.setPage(--_value);
-              getInt--;
-              _temp++;
-              _portionValue++;
+              setState(() {
+                _pdfViewController.setPage(--_value);
+              
+                _temp++;
+                _portionValue++;
+              });
             }
           },
           onSwipeRight: () {
             if (widget.pageNumber == "bookmark") {
-              if(_value==602){
+              if (_value == 602) {
                 return null;
-              }else{
-_pdfViewController.setPage(++_value);
-              getInt++;
-              _temp--;
-              _portionValue--;
+              } else {
+                _pdfViewController.setPage(++_value);
+                getInt++;
+                _temp--;
+                _portionValue--;
               }
-              
             } else if (_value >=
                     int.parse(widget.pageNumber) + widget.portion &&
                 widget.portion != 600) {
@@ -154,7 +149,7 @@ _pdfViewController.setPage(++_value);
             } else {
               if (_value < 602) {
                 _pdfViewController.setPage(++_value);
-                getInt++;
+               
                 _temp--;
                 _portionValue--;
               }
@@ -177,7 +172,6 @@ _pdfViewController.setPage(++_value);
               setState(() {
                 pdfReady = true;
                 if (widget.pageNumber == "bookmark") {
-                 
                   _pdfViewController.setPage(getInt);
                 } else
                   _pdfViewController.setPage(int.parse(widget.pageNumber));
@@ -192,7 +186,7 @@ _pdfViewController.setPage(++_value);
                   _value = value;
 
                   _currentPage = value;
-                });
+               });
               });
             },
             onPageError: (page, e) {},
@@ -283,23 +277,21 @@ _pdfViewController.setPage(++_value);
           child: BottomAppBar(
               child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
-       activeTrackColor: Colors.black,
-       inactiveTrackColor: Colors.cyanAccent[700],
-    thumbColor: Colors.cyan[700],
-    valueIndicatorColor: Colors.cyan,
-    thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8.0),
-    overlayColor: Colors.purple.withAlpha(32),
-    overlayShape: RoundSliderOverlayShape(overlayRadius: 14.0),
+              activeTrackColor: Colors.black,
+              inactiveTrackColor: Colors.cyanAccent[700],
+              thumbColor: Colors.cyan[700],
+              valueIndicatorColor: Colors.cyan,
+              thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8.0),
+              overlayColor: Colors.purple.withAlpha(32),
+              overlayShape: RoundSliderOverlayShape(overlayRadius: 14.0),
             ),
             child: Slider(
-              value: 
-                   widget.portion != 600
-                      ? _portionValue.toDouble()
-                      : _temp.toDouble(),
+              value: widget.portion != 600
+                  ? _portionValue.toDouble()
+                  : _temp.toDouble(),
               min: 0.0,
               max: widget.portion == 600 ? 602.0 : widget.portion.toDouble(),
               divisions: widget.portion == 600 ? 602 : widget.portion,
-              
               label: widget.portion == 600
                   ? 'Page ${int.parse(books[_value].page)}\n ${books[_value].title} - Juz ${books[_value].juz} '
                   : 'Page ${int.parse(books[widget.lastDay - _portionValue].page)}\n ${books[widget.lastDay - _portionValue].title} - Juz ${books[widget.lastDay - _portionValue].juz} ',
