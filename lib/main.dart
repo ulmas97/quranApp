@@ -87,6 +87,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   String mulkMinute;
   String baqarahHour;
   String baqarahMinute;
+  String khatmahHour;
+  String khatmahMinute;
+  bool isKhatmahSet;
   bool isMorningAthkarSet;
   bool isNightAthkarSet;
   bool isMulkSet;
@@ -131,10 +134,13 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     mulkMinute = "18";
     baqarahHour = "18";
     baqarahMinute = "6";
-    isMorningAthkarSet=true;
-    isNightAthkarSet=true;
-    isBaqarahSet=true;
-    isMulkSet=true;
+    khatmahHour = '6';
+    khatmahMinute = '19';
+    isKhatmahSet = true;
+    isMorningAthkarSet = true;
+    isNightAthkarSet = true;
+    isBaqarahSet = true;
+    isMulkSet = true;
     page = Page("", "");
     juz = Juz("", "");
     book = Book("", "", "", "", "");
@@ -173,7 +179,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         thumbNumber = currentDay - value;
       });
       initializeNotifications();
-      singleNotification(new Time(23, 08, 0), 'hello', 'world', 654657);
+     
     });
     getFileFromAsset("assets/quran_cropped.pdf").then((f) {
       setState(() {
@@ -210,7 +216,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   }
 
   Future singleNotification(
-      Time time, String message, String subText, int hashcode,
+      Time time, String message, String subText, int hashcode, bool enabled,
       {String sound}) async {
     var androidChannel = AndroidNotificationDetails(
       'channel-di',
@@ -221,8 +227,13 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     );
     var iosChannel = IOSNotificationDetails();
     var platformChannel = NotificationDetails(androidChannel, iosChannel);
-    await localNotificationsPlugin.showDailyAtTime(
-        hashcode, message, subText, time, platformChannel);
+    if (enabled) {
+      await localNotificationsPlugin.showDailyAtTime(
+          hashcode, message, subText, time, platformChannel);
+    }
+    else{
+      await localNotificationsPlugin.cancel(hashcode);
+    }
   }
 
   setCurrentTime() async {
@@ -762,6 +773,67 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
           dense: true,
           leading: new Text(
+            'Khatmah Alarm',
+            style: new TextStyle(fontSize: 15.0),
+          ),
+        ),
+        new ListTile(
+          leading: Icon(Icons.book),
+          title: new Text('Daily Khatmah Alarm'),
+          trailing: Switch(
+            onChanged: (bool value) {
+              setState(() {
+                isKhatmahSet = value;
+                singleNotification(
+                              new Time(int.parse(khatmahHour), int.parse(khatmahMinute), 0),
+                              'khatma alarm',
+                              'read daily portion',
+                              654657,
+                              isKhatmahSet);
+              });
+            },
+            value: isKhatmahSet,
+          ),
+        ),
+        new ListTile(
+            enabled: isKhatmahSet,
+            leading: Icon(Icons.watch_later),
+            title: new Text('Day Athkar Time'),
+            trailing: new FlatButton(
+              child: new Text((int.parse(khatmahHour) < 10
+                      ? '0$khatmahHour'
+                      : khatmahHour) +
+                  ":" +
+                  (int.parse(khatmahMinute) < 10
+                      ? '0$khatmahMinute'
+                      : khatmahMinute)),
+              onPressed: !isKhatmahSet
+                  ? null
+                  : () {
+                      DatePicker.showTimePicker(
+                        context,
+                        onChanged: (DateTime dateTime) {
+                          setState(() {
+                            khatmahHour = dateTime.hour.toString();
+                            khatmahMinute = dateTime.minute.toString();
+                          });
+                        },
+                        onConfirm: (DateTime dateTime) {
+                          singleNotification(
+                              new Time(dateTime.hour, dateTime.minute, 0),
+                              'khatma alarm',
+                              'read daily portion',
+                              654657,
+                              isKhatmahSet);
+                        },
+                        locale: LocaleType.ar,
+                      );
+                    },
+            )),
+        Divider(),
+        new ListTile(
+          dense: true,
+          leading: new Text(
             'Athkar Alarms',
             style: new TextStyle(fontSize: 15.0),
           ),
@@ -772,7 +844,13 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           trailing: Switch(
             onChanged: (bool value) {
               setState(() {
-                isMorningAthkarSet=value;
+                isMorningAthkarSet = value;
+                singleNotification(
+                              new Time(int.parse(morningAthkarHour), int.parse(morningAthkarMinute), 0),
+                              'morning athkar',
+                              'read todays morning athkar',
+                              222,
+                              isMorningAthkarSet);
               });
             },
             value: isMorningAthkarSet,
@@ -790,18 +868,28 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                   (int.parse(morningAthkarMinute) < 10
                       ? '0$morningAthkarMinute'
                       : morningAthkarMinute)),
-              onPressed:!isMorningAthkarSet? null : () {
-                DatePicker.showTimePicker(
-                  context,
-                  onChanged: (DateTime dateTime) {
-                    setState(() {
-                      morningAthkarHour = dateTime.hour.toString();
-                      morningAthkarMinute = dateTime.minute.toString();
-                    });
-                  },
-                  locale: LocaleType.ar,
-                );
-              },
+              onPressed: !isMorningAthkarSet
+                  ? null
+                  : () {
+                      DatePicker.showTimePicker(
+                        context,
+                        onChanged: (DateTime dateTime) {
+                          setState(() {
+                            morningAthkarHour = dateTime.hour.toString();
+                            morningAthkarMinute = dateTime.minute.toString();
+                          });
+                        },
+                        onConfirm: (DateTime dateTime){
+                           singleNotification(
+                              new Time(dateTime.hour, dateTime.minute, 0),
+                              'morning athkar',
+                              'read todays morning athkar',
+                              222,
+                              isMorningAthkarSet);
+                        },
+                        locale: LocaleType.ar,
+                      );
+                    },
             )),
         new ListTile(
           leading: Icon(Icons.wb_sunny),
@@ -809,14 +897,20 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           trailing: Switch(
             onChanged: (bool value) {
               setState(() {
-                isNightAthkarSet=value;
+                isNightAthkarSet = value;
+                singleNotification(
+                              new Time(int.parse(eveningAthkarHour), int.parse(eveningAthkarMinute), 0),
+                              'night athkar',
+                              'read todays night athkar',
+                              333,
+                              isNightAthkarSet);
               });
             },
             value: isNightAthkarSet,
           ),
         ),
         new ListTile(
-          enabled: isNightAthkarSet,
+            enabled: isNightAthkarSet,
             leading: Icon(Icons.watch_later),
             title: new Text('Day Athkar Time'),
             trailing: new FlatButton(
@@ -827,23 +921,32 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                   (int.parse(eveningAthkarMinute) < 10
                       ? '0$eveningAthkarMinute'
                       : eveningAthkarMinute)),
-              onPressed:!isNightAthkarSet? null : () {
-                DatePicker.showTimePicker(
-                  context,
-                  onChanged: (DateTime dateTime) {
-                    setState(() {
-                      eveningAthkarHour = dateTime.hour.toString();
-                      eveningAthkarMinute = dateTime.minute.toString();
-                    });
-                  },
-                  locale: LocaleType.ar,
-                );
+              onPressed: !isNightAthkarSet
+                  ? null
+                  : () {
+                      DatePicker.showTimePicker(
+                        context,
+                        onChanged: (DateTime dateTime) {
+                          setState(() {
+                            eveningAthkarHour = dateTime.hour.toString();
+                            eveningAthkarMinute = dateTime.minute.toString();
+                          });
+                        },
+                        onConfirm: (DateTime dateTime){
+                            singleNotification(
+                              new Time(dateTime.hour, dateTime.minute, 0),
+                              'night athkar',
+                              'read todays night athkar',
+                              333,
+                              isNightAthkarSet);
               },
+                        
+                        locale: LocaleType.ar,
+                      );
+                    },
             )),
-            Divider(),
-
-
-            new ListTile(
+        Divider(),
+        new ListTile(
           dense: true,
           leading: new Text(
             'Sunnah Alarms',
@@ -851,20 +954,25 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           ),
         ),
         new ListTile(
-          
           leading: Icon(Icons.alarm),
           title: new Text('Al-Mulk Alarm'),
           trailing: Switch(
             onChanged: (bool value) {
               setState(() {
-                isMulkSet=value;
+                isMulkSet = value;
+                 singleNotification(
+                              new Time(int.parse(mulkHour), int.parse(mulkMinute), 0),
+                              'sunnah athkar',
+                              'read surat Al-Mulk',
+                              444,
+                              isMulkSet);
               });
             },
             value: isMulkSet,
           ),
         ),
         new ListTile(
-          enabled: isMulkSet,
+            enabled: isMulkSet,
             leading: Icon(Icons.watch_later),
             title: new Text('Al-Mulk Time'),
             trailing: new FlatButton(
@@ -872,21 +980,29 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                       ? '0$mulkHour'
                       : mulkHour) +
                   ":" +
-                  (int.parse(mulkMinute) < 10
-                      ? '0$mulkMinute'
-                      : mulkMinute)),
-              onPressed:!isMulkSet? null : () {
-                DatePicker.showTimePicker(
-                  context,
-                  onChanged: (DateTime dateTime) {
-                    setState(() {
-                      mulkHour = dateTime.hour.toString();
-                      mulkMinute = dateTime.minute.toString();
-                    });
-                  },
-                  locale: LocaleType.ar,
-                );
-              },
+                  (int.parse(mulkMinute) < 10 ? '0$mulkMinute' : mulkMinute)),
+              onPressed: !isMulkSet
+                  ? null
+                  : () {
+                      DatePicker.showTimePicker(
+                        context,
+                        onChanged: (DateTime dateTime) {
+                          setState(() {
+                            mulkHour = dateTime.hour.toString();
+                            mulkMinute = dateTime.minute.toString();
+                          });
+                        },
+                        onConfirm: (DateTime dateTime){
+singleNotification(
+                              new Time(dateTime.hour, dateTime.minute, 0),
+                              'sunnah athkar',
+                              'read surat Al-Mulk',
+                              444,
+                              isMulkSet);
+                        },
+                        locale: LocaleType.ar,
+                      );
+                    },
             )),
         new ListTile(
           leading: Icon(Icons.alarm),
@@ -894,14 +1010,20 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           trailing: Switch(
             onChanged: (bool value) {
               setState(() {
-                isBaqarahSet=value;
+                isBaqarahSet = value;
+                singleNotification(
+                              new Time(int.parse(baqarahHour), int.parse(baqarahMinute), 0),
+                              'sunnah athkar',
+                              'read surat Al-Baqarah',
+                              555,
+                              isBaqarahSet);
               });
             },
             value: isBaqarahSet,
           ),
         ),
         new ListTile(
-          enabled: isBaqarahSet,
+            enabled: isBaqarahSet,
             leading: Icon(Icons.watch_later),
             title: new Text('Al-Baqarah Time'),
             trailing: new FlatButton(
@@ -912,20 +1034,29 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                   (int.parse(baqarahMinute) < 10
                       ? '0$baqarahMinute'
                       : baqarahMinute)),
-              onPressed:!isBaqarahSet? null : () {
-                DatePicker.showTimePicker(
-                  context,
-                  onChanged: (DateTime dateTime) {
-                    setState(() {
-                      baqarahHour = dateTime.hour.toString();
-                      baqarahMinute = dateTime.minute.toString();
-                    });
-                  },
-                  locale: LocaleType.ar,
-                );
-              },
+              onPressed: !isBaqarahSet
+                  ? null
+                  : () {
+                      DatePicker.showTimePicker(
+                        context,
+                        onChanged: (DateTime dateTime) {
+                          setState(() {
+                            baqarahHour = dateTime.hour.toString();
+                            baqarahMinute = dateTime.minute.toString();
+                          });
+                        },
+                         onConfirm: (DateTime dateTime){
+singleNotification(
+                              new Time(dateTime.hour, dateTime.minute, 0),
+                              'sunnah athkar',
+                              'read surat Al-Baqarah',
+                              444,
+                              isBaqarahSet);
+                        },
+                        locale: LocaleType.ar,
+                      );
+                    },
             )),
-            
       ],
     ));
 
