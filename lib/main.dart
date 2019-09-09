@@ -106,7 +106,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   int portion;
   String startFrom;
   int currentDay;
-  String dropDownValue = 'Beginning of Quran';
+  String dropDownValue = '1 week';
   int startingJuz = 1;
   int stackIndex = 0;
   int days = 30;
@@ -175,11 +175,11 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     });
 
     controller = new AnimationController(
-      duration: Duration(milliseconds: 300),
+      duration: Duration(milliseconds: 200),
       vsync: this,
     );
     secondController = new AnimationController(
-      duration: Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 350),
       vsync: this,
     );
     animation = new Tween(begin: 0.0, end: -350.0).animate(controller)
@@ -228,8 +228,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   Future weeklyNotification(
       String message, String subText, int hashcode, bool enabled,
       {String sound}) async {
-        SharedPreferences prefs=await SharedPreferences.getInstance();
-        prefs.setBool(hashcode.toString()+'bool', enabled);
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool(hashcode.toString() + 'bool', enabled);
     var androidChannel = AndroidNotificationDetails(
       'channel-di',
       'channel-name',
@@ -239,19 +239,12 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     );
     var iosChannel = IOSNotificationDetails();
     var platformChannel = NotificationDetails(androidChannel, iosChannel);
-    if(enabled){
-await localNotificationsPlugin.showWeeklyAtDayAndTime(
-        hashcode,
-        message,
-        subText,
-        Day.Friday,
-        Time(8, 0, 0),
-        platformChannel);
+    if (enabled) {
+      await localNotificationsPlugin.showWeeklyAtDayAndTime(hashcode, message,
+          subText, Day.Friday, Time(8, 0, 0), platformChannel);
+    } else {
+      await localNotificationsPlugin.cancel(hashcode);
     }
-    else{
-     await localNotificationsPlugin.cancel(hashcode);
-    }
-    
   }
 
   setCurrentTime() async {
@@ -288,7 +281,7 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
     isNightAthkarSet = prefs.getBool('333bool') ?? true;
     isMulkSet = prefs.getBool('444bool') ?? true;
     isBaqarahSet = prefs.getBool('555bool') ?? true;
-    isKahfSet=prefs.getBool('777bool')??true;
+    isKahfSet = prefs.getBool('777bool') ?? true;
   }
 
   setAllInfo() async {
@@ -461,7 +454,7 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
             ),
             new Center(
                 child: new Text(
-              "أسابيع وقوعها، الو",
+              books.isEmpty ?'بِسمِ اللَّهِ الرَّحمٰنِ الرَّحيمِ' : books[int.parse(startFrom)-1].verse,
               style: Style.cardQuranTextStyle,
             )),
             new Container(
@@ -473,9 +466,10 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
                 new Text(
                   "Surat " +
                       (books.isEmpty
-                          ? '1'
-                          : books[int.parse(startFrom)].title) +
-                      " - Aya 106",
+                          ? '1 - Aya 106'
+                          : books[int.parse(startFrom)].title +
+                              " - Aya " +
+                              books[int.parse(startFrom)-1].ayah),
                   style: Style.cardTextStyle,
                 ),
                 new Text(
@@ -501,9 +495,9 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
                       ? ''
                       : "To Surat " +
                           (books.isEmpty
-                              ? '1'
-                              : books[int.parse(startFrom) + portion].title) +
-                          " - Aya 157",
+                              ? '1 - Aya 157'
+                              : books[int.parse(startFrom) + portion].title+' - Aya '+books[int.parse(startFrom)-1 + portion].ayah),
+                         
                   style: Style.cardTextStyle,
                 ),
                 new Text(
@@ -815,12 +809,12 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
             style: new TextStyle(fontSize: 15.0),
           ),
         ),
-       new GestureDetector(
-         child:  new ListTile(
-         leading: Icon(Icons.book), 
-         title: new Text('Surat Al-Kahf'),
-        ),
-        onTap: () => Navigator.push(
+        new GestureDetector(
+          child: new ListTile(
+            leading: Icon(Icons.book),
+            title: new Text('Surat Al-Kahf'),
+          ),
+          onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
@@ -829,13 +823,13 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
                         portion: 12,
                         lastDay: 303,
                       ))),
-       ),
-       new GestureDetector(
-         child:  new ListTile(
-         leading: Icon(Icons.book), 
-         title: new Text('Surat Al-Mulk'),
         ),
-        onTap: () => Navigator.push(
+        new GestureDetector(
+          child: new ListTile(
+            leading: Icon(Icons.book),
+            title: new Text('Surat Al-Mulk'),
+          ),
+          onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
@@ -844,13 +838,13 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
                         portion: 2,
                         lastDay: 562,
                       ))),
-       ),
-       new GestureDetector(
-         child:  new ListTile(
-         leading: Icon(Icons.book), 
-         title: new Text('Surat Al-Baqarah'),
         ),
-        onTap: () => Navigator.push(
+        new GestureDetector(
+          child: new ListTile(
+            leading: Icon(Icons.book),
+            title: new Text('Surat Al-Baqarah'),
+          ),
+          onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
                   builder: (context) => PdfViewPage(
@@ -859,9 +853,7 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
                         portion: 47,
                         lastDay: 47,
                       ))),
-       ),
-
-      
+        ),
         Divider(),
         new ListTile(
           dense: true,
@@ -1153,7 +1145,7 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
                       );
                     },
             )),
-            Divider(),
+        Divider(),
         new ListTile(
           dense: true,
           leading: new Text(
@@ -1169,7 +1161,8 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
             onChanged: (bool value) {
               setState(() {
                 isKahfSet = value;
-                weeklyNotification('Friday Sunnah', 'Read Surat Al-Kahf', 777, isKahfSet);
+                weeklyNotification(
+                    'Friday Sunnah', 'Read Surat Al-Kahf', 777, isKahfSet);
               });
             },
             value: isKahfSet,
@@ -1313,36 +1306,11 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
                           });
                         },
                         items: <String>[
-                          'Beginning of Quran',
-                          'Juz\' 2',
-                          'Juz\' 3',
-                          'Juz\' 4',
-                          'Juz\' 5',
-                          'Juz\' 6',
-                          'Juz\' 7',
-                          'Juz\' 8',
-                          'Juz\' 9',
-                          'Juz\' 10',
-                          'Juz\' 11',
-                          'Juz\' 12',
-                          'Juz\' 13',
-                          'Juz\' 14',
-                          'Juz\' 15',
-                          'Juz\' 16',
-                          'Juz\' 17',
-                          'Juz\' 18',
-                          'Juz\' 19',
-                          'Juz\' 20',
-                          'Juz\' 21',
-                          'Juz\' 22',
-                          'Juz\' 23',
-                          'Juz\' 24',
-                          'Juz\' 25',
-                          'Juz\' 26',
-                          'Juz\' 27',
-                          'Juz\' 28',
-                          'Juz\' 29',
-                          'Juz\' 30'
+                          '1 week',
+                          '2 weeks',
+                          '3 weeks',
+                          '1 month',
+                          '2 months',
                         ].map<DropdownMenuItem<String>>((String value) {
                           return DropdownMenuItem<String>(
                             value: value,
@@ -1357,12 +1325,29 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
                   margin: new EdgeInsets.only(top: 100.0),
                   child: RaisedButton(
                     onPressed: () {
+                      if (dropDownValue == '1 week') {
+                        portion = (604 / 7).floor();
+                        days = 7;
+                      } else if (dropDownValue == '2 weeks') {
+                        portion = (604 / 14).floor();
+                        days = 14;
+                      } else if (dropDownValue == '3 weeks') {
+                        portion = (604 / 21).floor();
+                        days = 21;
+                      } else if (dropDownValue == '1 month') {
+                        portion = (604 / 30).floor();
+                        days = 30;
+                      } else if (dropDownValue == '2 months') {
+                        portion = (604 / 60).floor();
+                        days = 60;
+                      }
+                      startingJuz = 1;
+                      setAllInfo();
+                      setCurrentTime();
+                      getAllInfo();
                       setState(() {
-                        stackIndex = 2;
-                        if (dropDownValue == "Beginning of Quran")
-                          startingJuz = 1;
-                        else
-                          startingJuz = int.parse(dropDownValue.substring(5));
+                        stackIndex = 0;
+                        thumbNumber = 0;
                       });
                     },
                     child: new Text(
@@ -1373,91 +1358,6 @@ await localNotificationsPlugin.showWeeklyAtDayAndTime(
             ),
           ),
         ),
-        Scaffold(
-            appBar: new AppBar(
-              title: Text("New Khatmah"),
-              actions: <Widget>[
-                _seen
-                    ? new IconButton(
-                        icon: new Icon(Icons.close),
-                        onPressed: () {
-                          setState(() {
-                            stackIndex = 0;
-                          });
-                        })
-                    : null,
-              ],
-            ),
-            body: new Container(
-              margin: new EdgeInsets.symmetric(vertical: 120.0),
-              child: new Column(
-                children: <Widget>[
-                  new Text(
-                    "In how many days do you want to finish reading the Quran?",
-                    textAlign: TextAlign.center,
-                    style: Style.cardQuranTextStyle,
-                  ),
-                  new Container(
-                    margin: new EdgeInsets.only(top: 80.0),
-                    child: new Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        new Text("Duration:    ",
-                            style: new TextStyle(
-                              fontSize: 16.0,
-                            )),
-                        new Text(
-                          days.toString() + " days",
-                        ),
-                        new IconButton(
-                          icon: Icon(Icons.add),
-                          onPressed: () {
-                            setState(() {
-                              days++;
-                            });
-                          },
-                        ),
-                        new IconButton(
-                          icon: Icon(Icons.remove),
-                          onPressed: () {
-                            setState(() {
-                              days--;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  new Padding(
-                    padding: EdgeInsets.fromLTRB(69.0, 0, 125, 0),
-                    child: new Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        new Text('Daily\nAmount:'),
-                        // new Container(width: 10,),
-                        new Text(calculate() + "  pages"),
-                      ],
-                    ),
-                  ),
-                  new Container(
-                    alignment: Alignment.center,
-                    margin: new EdgeInsets.only(top: 100.0),
-                    child: RaisedButton(
-                      onPressed: () {
-                        setAllInfo();
-                        setCurrentTime();
-                        getAllInfo();
-                        setState(() {
-                          stackIndex = 0;
-                          thumbNumber = 0;
-                        });
-                      },
-                      child: new Text("      Continue       "),
-                    ),
-                  )
-                ],
-              ),
-            ))
       ],
     );
   }
