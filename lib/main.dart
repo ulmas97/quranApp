@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/animation.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 import 'package:quran_app/reader_page.dart';
@@ -15,6 +16,8 @@ import 'package:firebase_database/ui/firebase_animated_list.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
+
+import 'dua_reader.dart';
 
 void main() {
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -99,6 +102,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   List<Page> pages = new List();
   List<Book> books = new List();
   List<Juz> juzes = new List();
+  List<String> duaTitles = new List();
   Juz juz;
   Page page;
   Book book;
@@ -115,19 +119,39 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   DatabaseReference bookRef;
   DatabaseReference juzRef;
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
+  
   int _currentPage = 0;
   TabController _tabController;
+  bool pdfReady = false;
+  
   void initializeNotifications() async {
     var initializeAndroid = AndroidInitializationSettings('app_icon');
     var initializeIOS = IOSInitializationSettings();
     var initSettings = InitializationSettings(initializeAndroid, initializeIOS);
-    await localNotificationsPlugin.initialize(initSettings);
+    await localNotificationsPlugin.initialize(initSettings,
+        onSelectNotification: kkk);
   }
 
   @override
   void initState() {
     getNotifications();
+    duaTitles = [
+      'المقدمات',
+      'الاساسيات',
+      'البركات و طلب الرزق الدنيوي و الاخروي',
+      'المعاملات',
+      '‫ذكر طرفي النهار‬',
+      'المحمدات‬‬',
+      '‫الحرز و الحماية',
+      '‫الادعية الجوامع‬‬',
+      '‫أدعية في الابتهال وطلب المغفرة‬',
+      'في التقرب و التحبب إلى الله‬',
+      'القرآنيات',
+      'الابتهالات و التضرع و شكوى الغربة‬‬',
+      'الدعاء الخاص و العام من العالمين',
+      'الذكر المكرر الضروري‬‬',
+      'الختام'
+    ];
     page = Page("", "");
     juz = Juz("", "");
     book = Book("", "", "", "", "");
@@ -136,19 +160,19 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     bookRef = database.reference().child('books');
     juzRef = database.reference().child('juzes');
     /*bookRef.once().then((DataSnapshot snapshot) {
-      var KEYS = snapshot.value.keys;
-      var DATA = snapshot.value;
-      books.clear();
-      for (var individualKey in KEYS) {
-        Book b = new Book(
-            DATA[individualKey]['title'],
-            DATA[individualKey]['page'],
-            DATA[individualKey]['juz'],
-            DATA[individualKey]['ayah'],
-            DATA[individualKey]['verse']);
-            books.add(b);
-      }
-    });*/
+          var KEYS = snapshot.value.keys;
+          var DATA = snapshot.value;
+          books.clear();
+          for (var individualKey in KEYS) {
+            Book b = new Book(
+                DATA[individualKey]['title'],
+                DATA[individualKey]['page'],
+                DATA[individualKey]['juz'],
+                DATA[individualKey]['ayah'],
+                DATA[individualKey]['verse']);
+                books.add(b);
+          }
+        });*/
     pageRef.onChildAdded.listen(_onEntryAdded);
     pageRef.onChildChanged.listen(_onEntryChanged);
     juzRef.onChildAdded.listen(_onJuzAdded);
@@ -167,10 +191,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       });
       initializeNotifications();
     });
-    getFileFromAsset("assets/quran_cropped.pdf").then((f) {
+    getFileFromAsset("assets/quran_cropped.pdf", 'quran_cropped.pdf').then((f) {
       setState(() {
         assetPDFPath = f.path;
-        print(assetPDFPath);
+        
       });
     });
 
@@ -201,8 +225,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     super.initState();
   }
 
-  Future singleNotification(
-      Time time, String message, String subText, int hashcode, bool enabled,
+  Future singleNotification(Time time, String message, String subText,
+      int hashcode, bool enabled, String payload,
       {String sound}) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString(hashcode.toString() + 'hour', time.hour.toString());
@@ -219,7 +243,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     var platformChannel = NotificationDetails(androidChannel, iosChannel);
     if (enabled) {
       await localNotificationsPlugin.showDailyAtTime(
-          hashcode, message, subText, time, platformChannel);
+          hashcode, message, subText, time, platformChannel,
+          payload: payload);
     } else {
       await localNotificationsPlugin.cancel(hashcode);
     }
@@ -332,12 +357,12 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     }
   }
 
-  Future<File> getFileFromAsset(String asset) async {
+  Future<File> getFileFromAsset(String asset, String fileName) async {
     try {
       var data = await rootBundle.load(asset);
       var bytes = data.buffer.asUint8List();
       var dir = await getApplicationDocumentsDirectory();
-      File file = File("${dir.path}/quran_cropped.pdf");
+      File file = File("${dir.path}/$fileName");
 
       File assetFile = await file.writeAsBytes(bytes);
       return assetFile;
@@ -412,21 +437,21 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    String calculate() {
-      double i = (604 - (startingJuz - 1) * 21) / days;
-      int j = i.floor();
-      int z = i.ceil();
-
-      if (i > (j + 0.1) && i < (z - 0.1)) {
-        portion = int.parse(j.toString());
-        return j.toString() + " or " + z.toString();
-      } else if (i <= (j + 0.1)) {
-        portion = int.parse(j.toString());
-        return j.toString();
-      } else if (i >= (z - 0.1)) {
-        portion = int.parse(z.toString());
-        return z.toString();
-      }
+    Widget grdidCard(String text) {
+      return new Card(
+        margin: new EdgeInsets.all(8),
+        elevation: 5.0,
+        child: new Container(
+          width: (MediaQuery.of(context).size.width / 2) - 100,
+          height: (MediaQuery.of(context).size.width / 2) - 100,
+          child: new Center(
+              child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+          )),
+        ),
+      );
     }
 
     final sessionCardContent = new Card(
@@ -496,8 +521,10 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                       : "To Surat " +
                           (books.isEmpty
                               ? '1 - Aya 157'
-                              : books[int.parse(startFrom) + portion].title+' - Aya '+books[int.parse(startFrom)-1 + portion].ayah),
-                         
+                              : books[int.parse(startFrom) + portion].title+
+                                  ' - Aya '+
+                                  books[int.parse(startFrom)-1 + portion]
+                                      .ayah),
                   style: Style.cardTextStyle,
                 ),
                 new Text(
@@ -745,7 +772,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         )),
       ],
     );
-    final athkarPage = new Container(
+    final addingPage = new Container(
         child: Column(
       children: <Widget>[
         Flexible(
@@ -799,6 +826,36 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         ),
       ],
     ));
+    final athkarPage =
+     
+     
+        new GridView.builder(
+          gridDelegate:
+              SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2),
+          itemCount: 15,
+          itemBuilder: (BuildContext context, int index) {
+            return new GestureDetector(
+              onTap: () {
+                getFileFromAsset('assets/${index + 1}.pdf', '${index + 1}.pdf')
+                    .then((f) {
+                  setState(() {
+                    
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                DuaViewPage(path: f.path)));
+                  });
+                });
+              },
+              child: new GridTile(
+                child: grdidCard(duaTitles[index]),
+              ),
+            );
+          },
+        );
+   
+
     final morePage = new Container(
         child: ListView(
       children: <Widget>[
@@ -875,7 +932,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     'khatma alarm',
                     'read daily portion',
                     654657,
-                    isKhatmahSet);
+                    isKhatmahSet,
+                    'khatmah');
               });
             },
             value: isKhatmahSet,
@@ -884,7 +942,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
             enabled: isKhatmahSet,
             leading: Icon(Icons.watch_later),
-            title: new Text('Day Athkar Time'),
+            title: new Text('Daily Khatmah Time'),
             trailing: new FlatButton(
               child: new Text((int.parse(khatmahHour) < 10
                       ? '0$khatmahHour'
@@ -910,7 +968,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                               'khatma alarm',
                               'read daily portion',
                               654657,
-                              isKhatmahSet);
+                              isKhatmahSet,
+                              'khatmah');
                         },
                         locale: LocaleType.ar,
                       );
@@ -937,7 +996,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     'morning athkar',
                     'read todays morning athkar',
                     222,
-                    isMorningAthkarSet);
+                    isMorningAthkarSet,
+                    'morning');
               });
             },
             value: isMorningAthkarSet,
@@ -972,7 +1032,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                               'morning athkar',
                               'read todays morning athkar',
                               222,
-                              isMorningAthkarSet);
+                              isMorningAthkarSet,
+                              'morning');
                         },
                         locale: LocaleType.ar,
                       );
@@ -991,7 +1052,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     'night athkar',
                     'read todays night athkar',
                     333,
-                    isNightAthkarSet);
+                    isNightAthkarSet,
+                    'evening');
               });
             },
             value: isNightAthkarSet,
@@ -1026,7 +1088,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                               'night athkar',
                               'read todays night athkar',
                               333,
-                              isNightAthkarSet);
+                              isNightAthkarSet,
+                              'evening');
                         },
                         locale: LocaleType.ar,
                       );
@@ -1052,7 +1115,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     'sunnah athkar',
                     'read surat Al-Mulk',
                     444,
-                    isMulkSet);
+                    isMulkSet,
+                    'mulk');
               });
             },
             value: isMulkSet,
@@ -1085,7 +1149,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                               'sunnah athkar',
                               'read surat Al-Mulk',
                               444,
-                              isMulkSet);
+                              isMulkSet,
+                              'mulk');
                         },
                         locale: LocaleType.ar,
                       );
@@ -1104,7 +1169,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     'sunnah athkar',
                     'read surat Al-Baqarah',
                     555,
-                    isBaqarahSet);
+                    isBaqarahSet,
+                    'baqarah');
               });
             },
             value: isBaqarahSet,
@@ -1139,7 +1205,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                               'sunnah athkar',
                               'read surat Al-Baqarah',
                               555,
-                              isBaqarahSet);
+                              isBaqarahSet,
+                              'baqarah');
                         },
                         locale: LocaleType.ar,
                       );
@@ -1222,18 +1289,22 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     final athkarAppBar = AppBar(
       title: Text("Athkar"),
     );
+    final notifAppBar = AppBar(
+      title: Text("More"),
+    );
 
     List<Widget> appBars = [
       todayAppBar,
       indexAppBar,
       athkarAppBar,
+      notifAppBar
     ];
 
     List<Widget> appPages = [
       todayPage,
       indexPage,
+      athkarPage,
       morePage,
-      //athkarPage,
     ];
 
     return IndexedStack(
@@ -1243,6 +1314,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           appBar: appBars[_currentPage],
           body: appPages[_currentPage],
           bottomNavigationBar: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
             currentIndex: _currentPage,
             onTap: (int index) {
               setState(() {
@@ -1251,17 +1323,21 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             },
             items: <BottomNavigationBarItem>[
               BottomNavigationBarItem(
-                icon: Icon(Icons.book),
-                title: Text('Today'),
-              ),
+                  icon: Icon(Icons.book),
+                  title: Text('Today'),
+                  backgroundColor: Colors.cyan),
               BottomNavigationBarItem(
-                icon: Icon(Icons.list),
-                title: Text('Index'),
-              ),
+                  icon: Icon(Icons.list),
+                  title: Text('Index'),
+                  backgroundColor: Colors.cyan),
               BottomNavigationBarItem(
-                icon: Icon(Icons.wb_sunny),
-                title: Text('Athkar'),
-              )
+                  icon: Icon(Icons.wb_sunny),
+                  title: Text('Athkar'),
+                  backgroundColor: Colors.cyan),
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.add_alarm),
+                  title: Text('Notifications'),
+                  backgroundColor: Colors.cyan),
             ],
           ),
         ),
@@ -1360,6 +1436,55 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         ),
       ],
     );
+  }
+
+  Future kkk(String payload) async {
+    getFileFromAsset("assets/quran_cropped.pdf", 'quran_cropped.pdf').then((f) {
+      setState(() {
+        
+         if (payload == 'mulk') {
+       Navigator.push(
+        context,
+        new MaterialPageRoute(
+            builder: (context) => new PdfViewPage(
+                  path: f.path,
+                  pageNumber: '560',
+                  portion: 2,
+                  lastDay: 562,
+                )),
+      );
+    } else if (payload == 'baqarah') {
+       Navigator.push(
+        context,
+        new MaterialPageRoute(
+            builder: (context) => new PdfViewPage(
+                  path: '/data/user/0/com.example.quran_app/app_flutter/quran_cropped.pdf',
+                  pageNumber: '0',
+                  portion: 47,
+                  lastDay: 47,
+                )),
+      );
+    }
+    else if(payload=='khatmah'){
+      
+         Navigator.push(
+        context,
+        new MaterialPageRoute(
+            builder: (context) => new PdfViewPage(
+                   path: f.path,
+                                      pageNumber:
+                                          (int.parse(startFrom) - 1).toString(),
+                                      portion: portion,
+                                      lastDay:
+                                          int.parse(startFrom) - 1 + portion,
+                )),
+      );
+      
+    }
+      });
+    });
+    
+   
   }
 }
 

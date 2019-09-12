@@ -58,6 +58,24 @@ flutter:
   uses-material-design: true
   assets:
    - assets/quran_cropped.pdf
+   - assets/1.pdf
+   - assets/2.pdf
+   - assets/3.pdf
+   - assets/4.pdf
+   - assets/5.pdf
+   - assets/6.pdf
+   - assets/7.pdf
+   - assets/8.pdf
+   - assets/9.pdf
+   - assets/10.pdf
+   - assets/11.pdf
+   - assets/12.pdf
+   - assets/13.pdf
+   - assets/14.pdf
+   - assets/15.pdf
+
+ 
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #  - images/a_dot_burr.jpeg

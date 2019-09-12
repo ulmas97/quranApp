@@ -31,7 +31,7 @@ class _PdfViewPageState extends State<PdfViewPage>
   bool _appBarVisible;
   List<Book> books = new List();
   int _currentPage = 0;
-
+  String path;
   bool pdfReady = false;
   int _value;
   int _temp;
@@ -61,7 +61,12 @@ class _PdfViewPageState extends State<PdfViewPage>
     bookRef.onChildChanged.listen(_onEntryChanged);
 
     super.initState();
-
+getFileFromAsset("assets/quran_cropped.pdf", 'quran_cropped.pdf').then((f) {
+      setState(() {
+        path = f.path;
+        
+      });
+    });
     if (widget.pageNumber == "bookmark") {
       _value = 0;
       getBookMark().then((int value) {
@@ -75,6 +80,19 @@ class _PdfViewPageState extends State<PdfViewPage>
     _appBarVisible = true;
     _controller = AnimationController(
         duration: const Duration(milliseconds: 100), vsync: this, value: 1.0);
+  }
+  Future<File> getFileFromAsset(String asset, String fileName) async {
+    try {
+      var data = await rootBundle.load(asset);
+      var bytes = data.buffer.asUint8List();
+      var dir = await getApplicationDocumentsDirectory();
+      File file = File("${dir.path}/$fileName");
+
+      File assetFile = await file.writeAsBytes(bytes);
+      return assetFile;
+    } catch (e) {
+      throw Exception("Error opening asset file");
+    }
   }
 
   _onEntryAdded(Event event) {
@@ -241,10 +259,10 @@ class _PdfViewPageState extends State<PdfViewPage>
                     return AppBar(
                       title: RichText(
                         text: TextSpan(children: <TextSpan>[
-                          TextSpan(text: books[_currentPage].title + '\n'),
+                          TextSpan(text: books.isEmpty ? '1': books[_currentPage].title + '\n'),
                           TextSpan(
-                              text: 'Page ' +
-                                  books[_currentPage].page +
+                              text: books.isEmpty ? 'Page 1, Juz 1':'Page ' +
+                                 books[_currentPage].page +
                                   ', Juz ' +
                                   books[_currentPage].juz),
                         ]),
@@ -294,7 +312,7 @@ class _PdfViewPageState extends State<PdfViewPage>
               divisions: widget.portion == 600 ? 602 : widget.portion,
               label: widget.portion == 600
                   ? 'Page ${int.parse(books[_value].page)}\n ${books[_value].title} - Juz ${books[_value].juz} '
-                  : 'Page ${int.parse(books[widget.lastDay - _portionValue].page)}\n ${books[widget.lastDay - _portionValue].title} - Juz ${books[widget.lastDay - _portionValue].juz} ',
+                  : books.isEmpty? '1': 'Page ${int.parse(books[widget.lastDay - _portionValue].page)}\n ${books[widget.lastDay - _portionValue].title} - Juz ${books[widget.lastDay - _portionValue].juz} ',
               onChangeEnd: (double newValue) {
                 _currentPage = 602 - newValue.round();
 
