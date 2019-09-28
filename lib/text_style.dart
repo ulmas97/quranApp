@@ -6,7 +6,7 @@ class Style{
 fontFamily: 'Asap',
 fontWeight: FontWeight.bold,
 fontSize: 15.0,
-color: Colors.lightBlue
+color:Color.fromRGBO(255, 127, 30, 1)
   );
  
   static final cardQuranTextStyle=new TextStyle(

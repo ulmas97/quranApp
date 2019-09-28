@@ -20,6 +20,7 @@ import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
 import 'dua_reader.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   runApp(MyApp());
@@ -35,9 +36,11 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(
         brightness: Brightness.light,
-        primaryColor: Colors.lightBlue[800],
-        accentColor: Colors.cyan[600],
-        scaffoldBackgroundColor: Colors.grey[100],
+        primaryColorBrightness: Brightness.dark,
+       
+        primaryColor:prefix0.Color.fromRGBO(255, 147, 30, 1),
+        accentColor:Colors.white,
+        scaffoldBackgroundColor: Colors.grey[300],
 
         // Define the default font family.
         fontFamily: 'Montserrat',
@@ -50,7 +53,7 @@ class MyApp extends StatelessWidget {
           body1: TextStyle(fontSize: 14.0, fontFamily: 'Hind'),
         ),
       ),
-      home: MyHomePage(title: 'Current Session'),
+      home: MyHomePage(title: 'الورد الحالي'),
     );
   }
 }
@@ -70,46 +73,53 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   bool firstDone = false;
   AnimationController controller, secondController;
   Animation animation, secondAnimation;
-  int _bookmark;
-  bool _seen;
-  Future checkFirstSeen() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    _seen = (prefs.getBool('seen') ?? false);
-    _bookmark = (prefs.getInt('bookmark') ?? 0);
-    if (!_seen) {
-      prefs.setBool('seen', true);
-      stackIndex = 1;
-    }
-  }
+  int _bookmark = 100;
+  bool _seen = true;
 
-  String morningAthkarHour;
-  String morningAthkarMinute;
-  String eveningAthkarHour;
-  String eveningAthkarMinute;
-  String mulkHour;
-  String mulkMinute;
-  String baqarahHour;
-  String baqarahMinute;
-  String khatmahHour;
-  String khatmahMinute;
-  bool isKhatmahSet;
-  bool isMorningAthkarSet;
-  bool isNightAthkarSet;
-  bool isMulkSet;
-  bool isKahfSet;
-  bool isBaqarahSet;
+  String morningAthkarHour = '1';
+  String morningAthkarMinute = '1';
+  String eveningAthkarHour = '1';
+  String eveningAthkarMinute = '1';
+  String mulkHour = '1';
+  String mulkMinute = '1';
+  String baqarahHour = '1';
+  String baqarahMinute = '1';
+  String khatmahHour = '1';
+  String khatmahMinute = '1';
+  bool isKhatmahSet = true;
+  bool isMorningAthkarSet = true;
+  bool isNightAthkarSet = true;
+  bool isMulkSet = true;
+  bool isKahfSet = true;
+  bool isBaqarahSet = true;
   String assetPDFPath = "";
   List<Page> pages = new List();
   List<Book> books = new List();
   List<Juz> juzes = new List();
-  List<String> duaTitles = new List();
+  List<String> duaTitles = [
+    'المقدمات',
+    'الاساسيات',
+    'البركات و طلب الرزق الدنيوي و الاخروي',
+    'المعاملات',
+    '‫ذكر طرفي النهار‬',
+    'المحمدات‬‬',
+    '‫الحرز و الحماية',
+    '‫الادعية الجوامع‬‬',
+    '‫أدعية في الابتهال وطلب المغفرة‬',
+    'في التقرب و التحبب إلى الله‬',
+    'القرآنيات',
+    'الابتهالات و التضرع و شكوى الغربة‬‬',
+    'الدعاء الخاص و العام من العالمين',
+    'الذكر المكرر الضروري‬‬',
+    'الختام'
+  ];
   Juz juz;
   Page page;
   Book book;
-  int day;
-  int portion;
-  String startFrom;
-  int currentDay;
+  int day = 30;
+  int portion = 1;
+  String startFrom = '1';
+  int currentDay = 0;
   String dropDownValue = '1 week';
   int startingJuz = 1;
   int stackIndex = 0;
@@ -119,39 +129,17 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   DatabaseReference bookRef;
   DatabaseReference juzRef;
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-  
+
   int _currentPage = 0;
   TabController _tabController;
-  bool pdfReady = false;
-  
-  void initializeNotifications() async {
-    var initializeAndroid = AndroidInitializationSettings('app_icon');
-    var initializeIOS = IOSInitializationSettings();
-    var initSettings = InitializationSettings(initializeAndroid, initializeIOS);
-    await localNotificationsPlugin.initialize(initSettings,
-        onSelectNotification: kkk);
-  }
 
   @override
   void initState() {
+    localNotificationsPlugin = FlutterLocalNotificationsPlugin();
+    checkFirstSeen();
+    initializeNotifications();
     getNotifications();
-    duaTitles = [
-      'المقدمات',
-      'الاساسيات',
-      'البركات و طلب الرزق الدنيوي و الاخروي',
-      'المعاملات',
-      '‫ذكر طرفي النهار‬',
-      'المحمدات‬‬',
-      '‫الحرز و الحماية',
-      '‫الادعية الجوامع‬‬',
-      '‫أدعية في الابتهال وطلب المغفرة‬',
-      'في التقرب و التحبب إلى الله‬',
-      'القرآنيات',
-      'الابتهالات و التضرع و شكوى الغربة‬‬',
-      'الدعاء الخاص و العام من العالمين',
-      'الذكر المكرر الضروري‬‬',
-      'الختام'
-    ];
+
     page = Page("", "");
     juz = Juz("", "");
     book = Book("", "", "", "", "");
@@ -179,22 +167,17 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     juzRef.onChildChanged.listen(_onJuzChanged);
     bookRef.onChildAdded.listen(_onBookAdded);
     bookRef.onChildChanged.listen(_onBookChanged);
-    localNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
     getAllInfo();
-
-    checkFirstSeen();
-
     getPeriod().then((int value) {
       setState(() {
         thumbNumber = currentDay - value;
       });
-      initializeNotifications();
     });
+
     getFileFromAsset("assets/quran_cropped.pdf", 'quran_cropped.pdf').then((f) {
       setState(() {
         assetPDFPath = f.path;
-        
       });
     });
 
@@ -223,6 +206,24 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
     _tabController = TabController(vsync: this, length: 2);
     super.initState();
+  }
+
+  Future checkFirstSeen() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    _seen = (prefs.getBool('seen') ?? false);
+    _bookmark = (prefs.getInt('bookmark') ?? 0);
+    if (!_seen) {
+      prefs.setBool('seen', true);
+      stackIndex = 1;
+    }
+  }
+
+  void initializeNotifications() async {
+    var initializeAndroid = AndroidInitializationSettings('app_icon');
+    var initializeIOS = IOSInitializationSettings();
+    var initSettings = InitializationSettings(initializeAndroid, initializeIOS);
+    await localNotificationsPlugin.initialize(initSettings,
+        onSelectNotification: kkk);
   }
 
   Future singleNotification(Time time, String message, String subText,
@@ -411,12 +412,11 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     var old = books.singleWhere((entry) {
       return entry.key == event.snapshot.key;
     });
-    setState(() {
-      books[books.indexOf(old)] = Book.fromSnapshot(event.snapshot);
-    });
+
+    books[books.indexOf(old)] = Book.fromSnapshot(event.snapshot);
   }
 
-  void handleSubmit() {
+  /*void handleSubmit() {
     final FormState form = formKey.currentState;
 
     if (form.validate()) {
@@ -424,7 +424,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       form.reset();
       juzRef.push().set(juz.toJson());
     }
-  }
+  }*/
 
   @override
   void dispose() {
@@ -464,11 +464,11 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 new Text(
-                  "Starts From",
+                  "من قوله تعالى",
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  "Juz'" +
+                  "الجزء" +
                       (books.isEmpty ? '1' : books[int.parse(startFrom)].juz),
                   style: Style.cardTextStyle,
                 )
@@ -479,26 +479,28 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             ),
             new Center(
                 child: new Text(
-              books.isEmpty ?'بِسمِ اللَّهِ الرَّحمٰنِ الرَّحيمِ' : books[int.parse(startFrom)-1].verse,
+              books.isEmpty
+                  ? 'بِسمِ اللَّهِ الرَّحمٰنِ الرَّحيمِ'
+                  : books[int.parse(startFrom) - 1].verse,
               style: Style.cardQuranTextStyle,
             )),
             new Container(
-              height: 60.0,
+              height: 50.0,
             ),
             new Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 new Text(
-                  "Surat " +
-                      (books.isEmpty
+                  (books.isEmpty
                           ? '1 - Aya 106'
-                          : books[int.parse(startFrom)].title +
-                              " - Aya " +
-                              books[int.parse(startFrom)-1].ayah),
+                          : (books[int.parse(startFrom) - 1].ayah) +" - سورة "
+                      +
+                      books[int.parse(startFrom)].title +
+                      " آية"),
                   style: Style.cardTextStyle,
                 ),
                 new Text(
-                  "Page " + startFrom,
+                  startFrom + " صفحة",
                   style: Style.cardTextStyle,
                 ),
               ],
@@ -518,19 +520,19 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                 new Text(
                   int.parse(startFrom) >= 604
                       ? ''
-                      : "To Surat " +
-                          (books.isEmpty
+                      : (books.isEmpty
                               ? '1 - Aya 157'
-                              : books[int.parse(startFrom) + portion].title+
-                                  ' - Aya '+
-                                  books[int.parse(startFrom)-1 + portion]
-                                      .ayah),
+                              : (books[int.parse(startFrom) - 1 + portion]
+                                  .ayah +
+                          " -إلى سورة"+
+                          books[int.parse(startFrom) + portion].title + " آية "))
+                          ,
                   style: Style.cardTextStyle,
                 ),
                 new Text(
                   int.parse(startFrom) >= 604
                       ? ' '
-                      : "Page " + (int.parse(startFrom) + portion).toString(),
+                      : (int.parse(startFrom) + portion).toString() + " صفحة",
                   style: Style.cardTextStyle,
                 ),
               ],
@@ -572,14 +574,14 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           ButtonTheme(
             minWidth: 155.0,
             height: 50.0,
-            buttonColor: Colors.lightBlue[800],
+            buttonColor: Colors.yellow,
             child: new RaisedButton(
                 child: Text(
-                  'Continue Reading',
+                  'تابع قراءة الورد',
                   style: new TextStyle(
                       fontSize: 16.0,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white),
+                      color: Colors.black),
                 ),
                 onPressed: startFrom == '604'
                     ? null
@@ -600,12 +602,12 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           ButtonTheme(
             minWidth: 155.0,
             height: 50.0,
-            buttonColor: Colors.lightGreenAccent[700],
+            buttonColor: prefix0.Color.fromRGBO(255, 147, 30, 1),
             child: new RaisedButton(
               child: Text(
-                "Done Reading",
+                "أتممت القراءة",
                 style:
-                    new TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+                    new TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold,color: Colors.white),
               ),
               onPressed: startFrom == '604'
                   ? null
@@ -626,7 +628,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               new Text(
-                "Khatma Sessions",
+                "الختمة الحالية",
                 style: new TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15.0,
@@ -636,20 +638,20 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                 child: new Row(
                   children: <Widget>[
                     thumbNumber == 1
-                        ? new Text("Ahead by a day")
-                        : thumbNumber > 1
+                        ? new Text("سابق يوم")
+                        : (thumbNumber > 1
                             ? new Text(
-                                "Ahead by " + thumbNumber.toString() + " days")
-                            : thumbNumber < 0
+                                "يوما " + thumbNumber.toString() + " سابق")
+                            : (thumbNumber < 0
                                 ? new Text("Behind by " +
                                     thumbNumber.abs().toString() +
                                     " days")
-                                : Container(),
+                                : Container())),
                     new Container(
                       width: 5.0,
                     ),
                     thumbNumber > 0
-                        ? Icon(Icons.thumb_up)
+                        ? Icon(Icons.thumb_up,color: prefix0.Color.fromRGBO(255, 147, 30, 1),)
                         : thumbNumber < 0 ? Icon(Icons.thumb_down) : Container()
                   ],
                 ),
@@ -664,21 +666,21 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
               isRTL: true,
               lineHeight: 16.0,
               animationDuration: 1000,
-              percent: currentDay / day,
+              percent: (currentDay / day).toDouble(),
               center: Text((currentDay / day * 100).toStringAsFixed(0) + "%"),
               animateFromLastPercent: true,
               linearStrokeCap: LinearStrokeCap.roundAll,
-              progressColor: Colors.cyan[600],
+              progressColor: Colors.blueGrey[600],
             ),
           ),
           new Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              new Text("Previous: " + currentDay.toString(),
+              new Text(currentDay.toString() + " :الأوراد السابقة",
                   style: new TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.blueGrey[600])),
-              new Text("Upcoming: " + (day - currentDay).toString(),
+              new Text((day - currentDay).toString() + " :الأوراد القادمة",
                   style: new TextStyle(
                       fontWeight: FontWeight.bold, color: Colors.blueGrey[600]))
             ],
@@ -692,7 +694,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           sessionCard,
           readingButtons,
           new Container(
-            height: 40.0,
+            height: 30.0,
           ),
           new Divider(
             indent: 15.0,
@@ -725,13 +727,13 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                       ))),
           child: ListTile(
             leading: new Text(
-              (index + 1).toInt().toString() + ".  Surat " + pages[index].title,
+              (index + 1).toInt().toString() + ".  سورة " + pages[index].title,
               style: new TextStyle(fontWeight: FontWeight.bold),
             ),
             trailing: pages[index].id == "1"
-                ? Text("Page 1")
+                ? Text("صفحة 1")
                 : new Text(
-                    "Page " + (int.parse(pages[index].id) - 1).toString()),
+                    (int.parse(pages[index].id) - 1).toString() + " صفحة"),
           ));
     }
 
@@ -747,9 +749,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                         lastDay: 1,
                       ))),
           child: ListTile(
-            leading: new Text((index / 2 + 1).toInt().toString() + "."),
-            title: new Text("Juz' " + juzes[index].id),
-            trailing: new Text("Page " + juzes[index].page),
+            leading: new Text(juzes[index].id+"."),
+            title: new Text(juzes[index].id + " الجزء"),
+            trailing: new Text("صفحة " + juzes[index].page),
           ));
     }
 
@@ -765,9 +767,9 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         )),
         new Container(
             child: ListView.builder(
-          itemCount: 227,
+          itemCount: juzes.length,
           itemBuilder: (BuildContext context, int index) {
-            return index % 2 == 0 ? buildMow(1, index) : Divider();
+            return buildMow(1, index);
           },
         )),
       ],
@@ -788,7 +790,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     title: TextFormField(
                       keyboardType: TextInputType.number,
                       initialValue: "",
-                      onSaved: (val) => juz.id = val,
+                      //onSaved: (val) => juz.id = val,
                       validator: (val) => val == "" ? val : null,
                     ),
                   ),
@@ -797,14 +799,14 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     title: TextFormField(
                       keyboardType: TextInputType.number,
                       initialValue: "",
-                      onSaved: (val) => juz.page = val,
+                      // onSaved: (val) => juz.page = val,
                       validator: (val) => val == "" ? val : null,
                     ),
                   ),
                   IconButton(
                     icon: Icon(Icons.send),
                     onPressed: () {
-                      handleSubmit();
+                      //  handleSubmit();
                     },
                   )
                 ],
@@ -812,49 +814,43 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             ),
           ),
         ),
-        Flexible(
+        /*  Flexible(
           child: FirebaseAnimatedList(
             query: bookRef,
             itemBuilder: (BuildContext context, DataSnapshot snapshot,
                 Animation<double> animation, int index) {
               return new ListTile(
-                leading: Text(juzes[index].page ?? ' '),
-                title: Text(juzes[index].id ?? ''),
+               // leading: Text(juzes[index].page ?? ' '),
+                //title: Text(juzes[index].id ?? ''),
               );
             },
           ),
-        ),
+        ),*/
       ],
     ));
-    final athkarPage =
-     
-     
-        new GridView.builder(
-          gridDelegate:
-              SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2),
-          itemCount: 15,
-          itemBuilder: (BuildContext context, int index) {
-            return new GestureDetector(
-              onTap: () {
-                getFileFromAsset('assets/${index + 1}.pdf', '${index + 1}.pdf')
-                    .then((f) {
-                  setState(() {
-                    
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                DuaViewPage(path: f.path)));
-                  });
-                });
-              },
-              child: new GridTile(
-                child: grdidCard(duaTitles[index]),
-              ),
-            );
+    final athkarPage = new GridView.builder(
+      gridDelegate:
+          SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2),
+      itemCount: 15,
+      itemBuilder: (BuildContext context, int index) {
+        return new GestureDetector(
+          onTap: () {
+            getFileFromAsset('assets/${index + 1}.pdf', '${index + 1}.pdf')
+                .then((f) {
+              setState(() {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => DuaViewPage(path: f.path)));
+              });
+            });
           },
+          child: new GridTile(
+            child: grdidCard(duaTitles[index]),
+          ),
         );
-   
+      },
+    );
 
     final morePage = new Container(
         child: ListView(
@@ -862,14 +858,14 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
           dense: true,
           leading: new Text(
-            'Quranic Sunnahs',
+            'سُنَّة اليومية',
             style: new TextStyle(fontSize: 15.0),
           ),
         ),
         new GestureDetector(
           child: new ListTile(
             leading: Icon(Icons.book),
-            title: new Text('Surat Al-Kahf'),
+            title: new Text('سورة الكهف'),
           ),
           onTap: () => Navigator.push(
               context,
@@ -884,7 +880,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new GestureDetector(
           child: new ListTile(
             leading: Icon(Icons.book),
-            title: new Text('Surat Al-Mulk'),
+            title: new Text('سورة الملك'),
           ),
           onTap: () => Navigator.push(
               context,
@@ -899,7 +895,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new GestureDetector(
           child: new ListTile(
             leading: Icon(Icons.book),
-            title: new Text('Surat Al-Baqarah'),
+            title: new Text('سورة البقرة'),
           ),
           onTap: () => Navigator.push(
               context,
@@ -915,13 +911,13 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
           dense: true,
           leading: new Text(
-            'Khatmah Alarm',
+            'تنبيه الختمة',
             style: new TextStyle(fontSize: 15.0),
           ),
         ),
         new ListTile(
           leading: Icon(Icons.book),
-          title: new Text('Daily Khatmah Alarm'),
+          title: new Text('منبه الختمة اليومي'),
           trailing: Switch(
             onChanged: (bool value) {
               setState(() {
@@ -942,7 +938,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
             enabled: isKhatmahSet,
             leading: Icon(Icons.watch_later),
-            title: new Text('Daily Khatmah Time'),
+            title: new Text('وقت المنبه اليومي'),
             trailing: new FlatButton(
               child: new Text((int.parse(khatmahHour) < 10
                       ? '0$khatmahHour'
@@ -979,13 +975,13 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
           dense: true,
           leading: new Text(
-            'Athkar Alarms',
+            'تنبيهات الأذكار',
             style: new TextStyle(fontSize: 15.0),
           ),
         ),
         new ListTile(
           leading: Icon(Icons.wb_sunny),
-          title: new Text('Day Athkar Alarm'),
+          title: new Text('تنبيه أذكار الصباح'),
           trailing: Switch(
             onChanged: (bool value) {
               setState(() {
@@ -1006,7 +1002,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
             enabled: isMorningAthkarSet,
             leading: Icon(Icons.watch_later),
-            title: new Text('Day Athkar Time'),
+            title: new Text('وقت أذكار الصباح'),
             trailing: new FlatButton(
               child: new Text((int.parse(morningAthkarHour) < 10
                       ? '0$morningAthkarHour'
@@ -1041,7 +1037,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             )),
         new ListTile(
           leading: Icon(Icons.wb_sunny),
-          title: new Text('Night Athkar Alarm'),
+          title: new Text('تنبيه أذكار المساء'),
           trailing: Switch(
             onChanged: (bool value) {
               setState(() {
@@ -1062,7 +1058,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
             enabled: isNightAthkarSet,
             leading: Icon(Icons.watch_later),
-            title: new Text('Day Athkar Time'),
+            title: new Text('وقت أذكار المساء'),
             trailing: new FlatButton(
               child: new Text((int.parse(eveningAthkarHour) < 10
                       ? '0$eveningAthkarHour'
@@ -1099,7 +1095,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
           dense: true,
           leading: new Text(
-            'Sunnah Alarms',
+            'تبيه السنن',
             style: new TextStyle(fontSize: 15.0),
           ),
         ),
@@ -1216,7 +1212,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new ListTile(
           dense: true,
           leading: new Text(
-            'Friday Alarm',
+            'تنبيه يوم الجمعة',
             style: new TextStyle(fontSize: 15.0),
           ),
         ),
@@ -1271,26 +1267,24 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         new Container(
           width: 10.0,
         ),
-        Icon(Icons.share),
-        new Container(
-          width: 20.0,
-        )
+        
+        
       ],
     );
 
     final indexAppBar = AppBar(
-      title: Text("Index"),
+      title: Text("الفهرس"),
       bottom: TabBar(
           controller: _tabController,
           labelPadding: new EdgeInsets.only(bottom: 15.0),
-          tabs: [new Text("Surahs"), new Text("Ajza'")]),
+          tabs: [new Text("سورة"), new Text("أَجْزَاءْ")]),
     );
 
     final athkarAppBar = AppBar(
-      title: Text("Athkar"),
+      title: Text("الأذكار"),
     );
     final notifAppBar = AppBar(
-      title: Text("More"),
+      title: Text("المزيد "),
     );
 
     List<Widget> appBars = [
@@ -1314,6 +1308,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           appBar: appBars[_currentPage],
           body: appPages[_currentPage],
           bottomNavigationBar: BottomNavigationBar(
+            backgroundColor: Colors.black,
+            unselectedItemColor: Colors.white,
             type: BottomNavigationBarType.fixed,
             currentIndex: _currentPage,
             onTap: (int index) {
@@ -1324,19 +1320,19 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             items: <BottomNavigationBarItem>[
               BottomNavigationBarItem(
                   icon: Icon(Icons.book),
-                  title: Text('Today'),
+                  title: Text('ورد اليوم'),
                   backgroundColor: Colors.cyan),
               BottomNavigationBarItem(
                   icon: Icon(Icons.list),
-                  title: Text('Index'),
+                  title: Text('الفهرس'),
                   backgroundColor: Colors.cyan),
               BottomNavigationBarItem(
                   icon: Icon(Icons.wb_sunny),
-                  title: Text('Athkar'),
+                  title: Text('الأذكار'),
                   backgroundColor: Colors.cyan),
               BottomNavigationBarItem(
                   icon: Icon(Icons.add_alarm),
-                  title: Text('Notifications'),
+                  title: Text('التنبيهات'),
                   backgroundColor: Colors.cyan),
             ],
           ),
@@ -1441,50 +1437,43 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   Future kkk(String payload) async {
     getFileFromAsset("assets/quran_cropped.pdf", 'quran_cropped.pdf').then((f) {
       setState(() {
-        
-         if (payload == 'mulk') {
-       Navigator.push(
-        context,
-        new MaterialPageRoute(
-            builder: (context) => new PdfViewPage(
-                  path: f.path,
-                  pageNumber: '560',
-                  portion: 2,
-                  lastDay: 562,
-                )),
-      );
-    } else if (payload == 'baqarah') {
-       Navigator.push(
-        context,
-        new MaterialPageRoute(
-            builder: (context) => new PdfViewPage(
-                  path: '/data/user/0/com.example.quran_app/app_flutter/quran_cropped.pdf',
-                  pageNumber: '0',
-                  portion: 47,
-                  lastDay: 47,
-                )),
-      );
-    }
-    else if(payload=='khatmah'){
-      
-         Navigator.push(
-        context,
-        new MaterialPageRoute(
-            builder: (context) => new PdfViewPage(
-                   path: f.path,
-                                      pageNumber:
-                                          (int.parse(startFrom) - 1).toString(),
-                                      portion: portion,
-                                      lastDay:
-                                          int.parse(startFrom) - 1 + portion,
-                )),
-      );
-      
-    }
+        if (payload == 'mulk') {
+          Navigator.push(
+            context,
+            new MaterialPageRoute(
+                builder: (context) => new PdfViewPage(
+                      path: f.path,
+                      pageNumber: '560',
+                      portion: 2,
+                      lastDay: 562,
+                    )),
+          );
+        } else if (payload == 'baqarah') {
+          Navigator.push(
+            context,
+            new MaterialPageRoute(
+                builder: (context) => new PdfViewPage(
+                      path:
+                          '/data/user/0/com.example.quran_app/app_flutter/quran_cropped.pdf',
+                      pageNumber: '0',
+                      portion: 47,
+                      lastDay: 47,
+                    )),
+          );
+        } else if (payload == 'khatmah') {
+          Navigator.push(
+            context,
+            new MaterialPageRoute(
+                builder: (context) => new PdfViewPage(
+                      path: f.path,
+                      pageNumber: (int.parse(startFrom) - 1).toString(),
+                      portion: portion,
+                      lastDay: int.parse(startFrom) - 1 + portion,
+                    )),
+          );
+        }
       });
     });
-    
-   
   }
 }
 
