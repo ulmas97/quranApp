@@ -87,7 +87,9 @@ class _DuaViewPageState extends State<DuaViewPage> with SingleTickerProviderStat
       end: Offset(0.0, 0.0),
     ).animate(_controller);
     return Scaffold(
-     
+     appBar: new AppBar(
+       
+     ),
       body:Stack(
         children: <Widget>[
         _pdfWidget,
@@ -100,9 +102,7 @@ class _DuaViewPageState extends State<DuaViewPage> with SingleTickerProviderStat
             position: offsetAnimation,
             child: Container(
               height: 75,
-              child: AppBar(
-                title: Text("Quran"),
-              ),
+              
             ),
           ),
           

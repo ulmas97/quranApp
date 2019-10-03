@@ -239,13 +239,14 @@ class _PdfViewPageState extends State<PdfViewPage>
                 child: Builder(
                   builder: (BuildContext context) {
                     return AppBar(
+                    
                       title: RichText(
                         text: TextSpan(children: <TextSpan>[
                           TextSpan(text: books[_currentPage].title + '\n'),
                           TextSpan(
-                              text: 'Page ' +
+                              text: 'صفحة ' +
                                   books[_currentPage].page +
-                                  ', Juz ' +
+                                  ', الجزء ' +
                                   books[_currentPage].juz),
                         ]),
                       ),
@@ -255,7 +256,7 @@ class _PdfViewPageState extends State<PdfViewPage>
                             onPressed: () {
                               Scaffold.of(context).showSnackBar(new SnackBar(
                                   content:
-                                      new Text("The Bookmark has been set")));
+                                      new Text("تم تعيين الإشارة المرجعية")));
                               _pdfViewController.getCurrentPage().then((value) {
                                 setBookmark(value);
                               });
@@ -277,10 +278,11 @@ class _PdfViewPageState extends State<PdfViewPage>
           child: BottomAppBar(
               child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: Colors.black,
-              inactiveTrackColor: Colors.cyanAccent[700],
-              thumbColor: Colors.cyan[700],
-              valueIndicatorColor: Colors.cyan,
+              activeTrackColor: Colors.grey[300],
+              inactiveTrackColor:Color.fromRGBO(255, 147, 30, 1),
+              thumbColor: Color.fromRGBO(255, 147, 30, 1),
+              valueIndicatorColor: Colors.black,
+              
               thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8.0),
               overlayColor: Colors.purple.withAlpha(32),
               overlayShape: RoundSliderOverlayShape(overlayRadius: 14.0),
@@ -293,8 +295,8 @@ class _PdfViewPageState extends State<PdfViewPage>
               max: widget.portion == 600 ? 602.0 : widget.portion.toDouble(),
               divisions: widget.portion == 600 ? 602 : widget.portion,
               label: widget.portion == 600
-                  ? 'Page ${int.parse(books[_value].page)}\n ${books[_value].title} - Juz ${books[_value].juz} '
-                  : 'Page ${int.parse(books[widget.lastDay - _portionValue].page)}\n ${books[widget.lastDay - _portionValue].title} - Juz ${books[widget.lastDay - _portionValue].juz} ',
+                  ? 'صفحة ${int.parse(books[_value].page)}\n ${books[_value].title} - الجزء ${books[_value].juz} '
+                  : 'صفحة ${int.parse(books[widget.lastDay - _portionValue].page)}\n ${books[widget.lastDay - _portionValue].title} - الجزء ${books[widget.lastDay - _portionValue].juz} ',
               onChangeEnd: (double newValue) {
                 _currentPage = 602 - newValue.round();
 
