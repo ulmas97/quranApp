@@ -1337,9 +1337,11 @@ children: <Widget>[
     );
 
     List<Widget> appBars = [
-        indexAppBar,
-      athkarAppBar,
+        
+     
       notifAppBar,
+       athkarAppBar,
+      indexAppBar,
       todayAppBar,
     
       
@@ -1347,9 +1349,11 @@ children: <Widget>[
     ];
 
     List<Widget> appPages = [
-         indexPage,
-      athkarPage,
+         
+      
        morePage,
+       athkarPage,
+       indexPage,
       todayPage,
    
       

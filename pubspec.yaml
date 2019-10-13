@@ -17,6 +17,7 @@ environment:
   sdk: ">=2.1.0 <3.0.0"
 
 dependencies:
+  
   flutter_datetime_picker: ^1.2.6
   flutter_local_notifications: ^0.8.2
   intl: ^0.16.0
@@ -44,6 +45,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: "^0.7.3"
+
+flutter_icons:
+  image_path: "assets/photo_2019-10-13_16-44-55.jpg"
+  android: true
+  ios: true
 
 
 # For information on the generic Dart part of this file, see the
