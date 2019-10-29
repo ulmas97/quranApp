@@ -679,7 +679,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
               center: Text((currentDay / day * 100).toStringAsFixed(0) + "%"),
               animateFromLastPercent: true,
               linearStrokeCap: LinearStrokeCap.roundAll,
-              progressColor: Colors.blueGrey[600],
+              progressColor: Colors.green
             ),
           ),
           new Row(
@@ -940,6 +940,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           trailing: Icon(Icons.book),
           title: new Text('منبه الختمة اليومي',textAlign: TextAlign.end,),
           leading: Switch(
+            activeColor: Colors.green,
             onChanged: (bool value) {
               setState(() {
                 isKhatmahSet = value;
@@ -1004,6 +1005,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           trailing: Icon(Icons.wb_sunny),
           title: new Text('تنبيه أذكار الصباح',textAlign: TextAlign.end,),
           leading: Switch(
+            activeColor: Colors.green,
             onChanged: (bool value) {
               setState(() {
                 isMorningAthkarSet = value;
@@ -1060,6 +1062,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           trailing: Icon(Icons.wb_sunny),
           title: new Text('تنبيه أذكار المساء',textAlign: TextAlign.end,),
           leading: Switch(
+            activeColor: Colors.green,
             onChanged: (bool value) {
               setState(() {
                 isNightAthkarSet = value;
@@ -1124,6 +1127,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           trailing: Icon(Icons.alarm),
           title: new Text('تنبيه سورة الملك',textAlign: TextAlign.end),
           leading: Switch(
+            activeColor: Colors.green,
             onChanged: (bool value) {
               setState(() {
                 isMulkSet = value;
@@ -1177,6 +1181,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           trailing: Icon(Icons.alarm),
           title: new Text(' تنبيه سوره البقره',textAlign: TextAlign.end,),
           leading: Switch(
+            activeColor: Colors.green,
             onChanged: (bool value) {
               setState(() {
                 isBaqarahSet = value;
@@ -1242,6 +1247,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           trailing: Icon(Icons.alarm),
           title: new Text('تنبيه سورة الكهف',textAlign: TextAlign.end),
           leading: Switch(
+            activeColor: Colors.green,
             onChanged: (bool value) {
               setState(() {
                 isKahfSet = value;
