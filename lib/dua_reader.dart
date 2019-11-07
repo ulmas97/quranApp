@@ -50,7 +50,7 @@ class _DuaViewPageState extends State<DuaViewPage> with SingleTickerProviderStat
     return Center(
           child: PDFView(
             filePath: widget.path,
-            autoSpacing: true,
+            autoSpacing: false,
             enableSwipe: true,
             pageSnap: true,
             swipeHorizontal: false,

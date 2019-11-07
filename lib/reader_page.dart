@@ -159,7 +159,7 @@ class _PdfViewPageState extends State<PdfViewPage>
           child: PDFView(
             gestureRecognizers: null,
             filePath: widget.path,
-            autoSpacing: true,
+            autoSpacing: false,
             enableSwipe: false,
             pageSnap: true,
             swipeHorizontal: true,
@@ -235,7 +235,7 @@ class _PdfViewPageState extends State<PdfViewPage>
           SlideTransition(
             position: offsetAnimation,
             child: Container(
-                height: 75,
+                height: 85,
                 child: Builder(
                   builder: (BuildContext context) {
                     return AppBar(
@@ -269,12 +269,71 @@ class _PdfViewPageState extends State<PdfViewPage>
                   },
                 )),
           ),
-        ],
-      ),
-      bottomNavigationBar: SlideTransition(
+           SlideTransition(
         position: offsetAnimation,
         child: Container(
-          height: 30,
+          height: 20,
+          child: BottomAppBar(
+              child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: Colors.grey[300],
+              inactiveTrackColor:Color.fromRGBO(255, 147, 30, 1),
+              thumbColor: Color.fromRGBO(255, 147, 30, 1),
+              valueIndicatorColor: Colors.black,
+              
+              thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8.0),
+              overlayColor: Colors.purple.withAlpha(32),
+              overlayShape: RoundSliderOverlayShape(overlayRadius: 14.0),
+            ),
+            child: Slider(
+              value: widget.portion != 600
+                  ? _portionValue.toDouble()
+                  : _temp.toDouble(),
+              min: 0.0,
+              max: widget.portion == 600 ? 602.0 : widget.portion.toDouble(),
+              divisions: widget.portion == 600 ? 602 : widget.portion,
+              label: widget.portion == 600
+                  ? 'صفحة ${int.parse(books[_value].page)}\n ${books[_value].title} - الجزء ${books[_value].juz} '
+                  : 'صفحة ${int.parse(books[widget.lastDay - _portionValue].page)}\n ${books[widget.lastDay - _portionValue].title} - الجزء ${books[widget.lastDay - _portionValue].juz} ',
+              onChangeEnd: (double newValue) {
+                _currentPage = 602 - newValue.round();
+
+                if (widget.portion == 600) {
+                  _pdfViewController.setPage(_currentPage);
+                } else {
+                  _pdfViewController.setPage(widget.lastDay - _portionValue);
+                }
+              },
+              onChangeStart: (double b) {},
+              onChanged: (double a) {
+                if (widget.portion == 600) {
+                  setState(() {
+                    _value = 602 - a.round();
+                    _temp = a.round();
+                    getInt = a.round();
+                  });
+                } else {
+                  setState(() {
+                    _value = a.round();
+                    _portionValue = a.round();
+                    _temp = a.round();
+                    getInt = a.round();
+                  });
+                }
+              },
+            ),
+          )),
+        ),
+      ),
+     
+       
+      
+        ],
+      ),
+      bottomNavigationBar:SlideTransition(
+        position: offsetAnimation,
+        child: FittedBox(
+          
           child: BottomAppBar(
               child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
